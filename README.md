@@ -3,31 +3,26 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>المدير الذكي 2026</title>
+    <title>المدير الذكي</title>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap" rel="stylesheet">
-    <!-- مكتبة الرسوم البيانية -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
     <style>
         :root {
-            /* الألوان الأساسية (الوضع الفاتح) */
             --primary: #4361ee; --primary-dark: #3a0ca3;
             --bg: #f8f9fa; --surface: #ffffff;
             --text: #2b2d42; --text-light: #8d99ae;
             --border: #e0e0e0;
-            
-            /* ألوان الحالات */
             --work: #4caf50; --holiday: #ffc107; --sick: #ff9800;
             --absent: #f44336; --eid: #9c27b0; --recup: #00bcd4;
             --radius: 16px;
         }
 
-        /* --- الوضع الليلي --- */
         body.dark-mode {
             --bg: #121212; --surface: #1e1e1e;
             --text: #e0e0e0; --text-light: #b0b0b0;
             --border: #333;
-            --primary: #5c7cfa; /* تفتيح الأزرق قليلاً لليلي */
+            --primary: #5c7cfa;
         }
 
         * { box-sizing: border-box; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
@@ -45,7 +40,6 @@
             box-shadow: 0 10px 40px rgba(0,0,0,0.2);
         }
         body.dark-mode .auth-card { background: #1e1e1e; color: #fff; }
-        
         .auth-header h2 { color: var(--primary-dark); margin: 0 0 10px 0; }
         body.dark-mode .auth-header h2 { color: var(--primary); }
 
@@ -84,6 +78,14 @@
         .action-btn { background: var(--bg); border: 1px solid var(--border); width: 36px; height: 36px; border-radius: 10px; cursor: pointer; font-size: 1.1rem; display: flex; justify-content: center; align-items: center; color: var(--text-light); position: relative; }
         .badge-count { position: absolute; top: -5px; left: -5px; background: #f44336; color: white; font-size: 0.7rem; width: 18px; height: 18px; border-radius: 50%; display: none; justify-content: center; align-items: center; border: 2px solid white; }
 
+        /* Admin Controls on Main Page */
+        #admin-controls-bar { 
+            display:none; /* Hidden by default, shown for admin */
+            background: var(--surface); padding: 10px; border-radius: var(--radius); 
+            margin-bottom: 20px; border: 1px dashed var(--primary);
+        }
+        .admin-select-wrapper { display: flex; gap: 10px; align-items: center; }
+
         /* Stats */
         .stats-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-bottom: 20px; }
         .stat-card { background: var(--surface); padding: 15px; border-radius: var(--radius); text-align: center; box-shadow: 0 4px 20px rgba(0,0,0,0.05); cursor: pointer; }
@@ -93,8 +95,7 @@
         .full-width { grid-column: span 2; }
         .txt-red { color: #f44336 !important; } .txt-green { color: #4caf50 !important; }
 
-        /* Chart Container */
-        .chart-box { background: var(--surface); padding: 15px; border-radius: var(--radius); box-shadow: 0 4px 20px rgba(0,0,0,0.05); margin-bottom: 20px; height: 260px; position: relative; }
+        .chart-box { background: var(--surface); padding: 15px; border-radius: var(--radius); box-shadow: 0 4px 20px rgba(0,0,0,0.05); margin-top: 20px; margin-bottom: 20px; height: 260px; position: relative; }
 
         /* Calendar */
         .calendar-box { background: var(--surface); border-radius: var(--radius); padding: 15px; box-shadow: 0 4px 20px rgba(0,0,0,0.05); }
@@ -108,45 +109,33 @@
         }
         .day-cell span { font-weight: bold; font-size: 0.9rem; color: var(--text); z-index: 2; position: absolute; top: 4px; right: 6px; line-height: 1; }
         .day-cell.today { border-color: var(--primary); background: rgba(67, 97, 238, 0.1) !important; }
-        
         .day-cell.weekend { background-color: rgba(200,200,255,0.15); border: 1px dashed var(--border); }
         body.dark-mode .day-cell.weekend { background-color: rgba(255,255,255,0.05); }
-        
         .day-cell.future { opacity: 0.5; cursor: default; }
 
-        /* Note Indicator */
         .note-dot { width: 6px; height: 6px; background-color: var(--text); border-radius: 50%; position: absolute; bottom: 5px; left: 50%; transform: translateX(-50%); opacity: 0.6; }
 
-        /* Colors */
         .day-cell.st-work { background-color: var(--work) !important; color: white !important; }
         .day-cell.st-holiday { background-color: var(--holiday) !important; color: #333 !important; }
         .day-cell.st-sick { background-color: var(--sick) !important; color: white !important; }
         .day-cell.st-absent { background-color: var(--absent) !important; color: white !important; }
         .day-cell.st-eid { background-color: var(--eid) !important; color: white !important; }
         .day-cell.st-recup { background-color: var(--recup) !important; color: white !important; }
-        /* Text color overrides for filled cells */
         .day-cell[class*="st-"] span { color: white !important; }
         .day-cell.st-holiday span { color: #333 !important; }
-
-        .day-cell.nat-holiday { 
-            background-color: #f8bbd0 !important; border: 2px solid #ec407a !important; color: #880e4f !important;
-        }
+        .day-cell.nat-holiday { background-color: #f8bbd0 !important; border: 2px solid #ec407a !important; color: #880e4f !important; }
         .day-cell.nat-holiday span { color: #880e4f !important; }
         body.dark-mode .day-cell.nat-holiday { background-color: #4a1c2d !important; color: #fce4ec !important; }
-        body.dark-mode .day-cell.nat-holiday span { color: #fce4ec !important; }
 
-        /* Legend */
         .legend-container { display: flex; justify-content: center; gap: 10px; flex-wrap: wrap; margin-top: 20px; padding: 10px; background: var(--bg); border-radius: var(--radius); }
         .legend-dot { width: 20px; height: 20px; border-radius: 50%; cursor: pointer; border: 2px solid var(--surface); box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
         .lg-work { background-color: var(--work); } .lg-holiday { background-color: var(--holiday); }
         .lg-sick { background-color: var(--sick); } .lg-absent { background-color: var(--absent); }
         .lg-recup { background-color: var(--recup); } .lg-eid { background-color: var(--eid); }
         .lg-nat { background-color: #f8bbd0; border: 2px solid #ec407a; }
-
         #legend-toast { position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%); background: #333; color: white; padding: 8px 16px; border-radius: 20px; font-size: 0.85rem; opacity: 0; transition: opacity 0.3s; pointer-events: none; z-index: 3000; }
         .show-toast { opacity: 1 !important; }
 
-        /* Modals */
         .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 2000; display: none; justify-content: center; align-items: flex-end; backdrop-filter: blur(2px); }
         #confirmModal, #msgPopup { z-index: 99999 !important; align-items: center; } 
         .modal-content { background: var(--surface); width: 100%; max-width: 500px; border-radius: 24px 24px 0 0; padding: 25px; animation: slideUp 0.3s; max-height: 85vh; overflow-y: auto; color: var(--text); }
@@ -159,8 +148,6 @@
         body.dark-mode .btn-del { background: #4a1c1c; }
         
         .hidden { display: none; }
-        
-        /* Lists */
         .preset-item, .search-item, .detail-item, .msg-item { display: flex; justify-content: space-between; align-items: center; background: var(--bg); padding: 12px; border-radius: 10px; margin-bottom: 6px; font-size: 0.9rem; border-left: 4px solid transparent; }
         .detail-item.pos { border-left-color: var(--work); } .detail-item.neg { border-left-color: var(--absent); } .detail-item.neutral { border-left-color: var(--primary); }
         
@@ -173,6 +160,12 @@
         .d-val.pos { color: var(--work); } .d-val.neg { color: var(--absent); } .d-val.neutral { color: var(--text-light); }
         .details-header { font-weight: bold; margin: 15px 0 10px; color: var(--primary); font-size: 0.95rem; border-bottom: 2px solid var(--border); padding-bottom: 5px; }
         .msg-popup-text { font-size: 1rem; color: var(--text); margin: 15px 0; background: var(--bg); padding: 15px; border-radius: 10px; border-right: 4px solid var(--primary); text-align: right; }
+        
+        /* Admin Styles */
+        .admin-user-row { display: flex; justify-content: space-between; align-items: center; padding: 10px; border-bottom: 1px solid var(--border); }
+        .btn-small { padding: 5px 10px; font-size: 0.8rem; border-radius: 6px; cursor: pointer; border: none; }
+        .btn-approve { background: var(--work); color: white; }
+        .btn-reject { background: var(--absent); color: white; margin-right: 5px; }
     </style>
 </head>
 <body>
@@ -193,16 +186,17 @@
                 <div class="input-group"><input type="password" id="login-pass" class="app-input" placeholder="كلمة المرور"><span class="toggle-password" onclick="togglePass('login-pass')">👁️</span></div>
                 <div style="display:flex; align-items:center; margin-bottom:15px; font-size:0.9rem;"><input type="checkbox" id="remember-me" style="margin-left:8px;"> <label for="remember-me">تذكرني</label></div>
                 <button class="btn-main" onclick="handleLogin()">دخول</button>
-                <button class="btn-main btn-secondary" onclick="switchView('view-signup')">إنشاء حساب جديد</button>
+                <button class="btn-main btn-secondary" onclick="switchView('view-signup')">اشتراك جديد</button>
                 <div style="margin-top:15px;"><span style="color:var(--primary); cursor:pointer; font-size:0.9rem;" onclick="switchView('view-reset')">نسيت كلمة المرور؟</span></div>
                 <div id="login-error" class="error-msg"></div>
             </div>
             <div id="view-signup" class="view-section">
-                <div class="auth-header"><h2>إنشاء حساب جديد</h2><p>سيصلك رابط تفعيل على الإيميل</p></div>
+                <div class="auth-header"><h2>إنشاء حساب جديد</h2><p>أدخل بياناتك لطلب التسجيل</p></div>
+                <div class="input-group"><input type="text" id="reg-name" class="app-input" placeholder="الاسم الكامل"></div>
                 <div class="input-group"><input type="email" id="reg-email" class="app-input" placeholder="البريد الإلكتروني"></div>
                 <div class="input-group"><input type="password" id="reg-pass" class="app-input" placeholder="كلمة المرور"><span class="toggle-password" onclick="togglePass('reg-pass')">👁️</span></div>
                 <div class="input-group"><input type="password" id="reg-confirm" class="app-input" placeholder="تأكيد كلمة المرور"></div>
-                <button class="btn-main" onclick="handleSignup()">تسجيل</button>
+                <button class="btn-main" onclick="handleSignup()">إرسال طلب التسجيل</button>
                 <button class="btn-main btn-secondary" onclick="switchView('view-login')">عودة للدخول</button>
                 <div id="reg-error" class="error-msg"></div><div id="reg-success" class="success-msg"></div>
             </div>
@@ -222,17 +216,27 @@
             <div class="header-info">
                 <h2 id="header-title" class="app-main-title">نظام الحضور الذكي</h2>
                 <div class="user-sub-title">مرحباً، <span id="u-name">...</span></div>
+                <!-- Admin viewing indicator -->
+                <div id="admin-view-indicator" style="display:none; font-size:0.8rem; color:var(--absent);">👁️ استعراض: <span id="viewed-user-name"></span></div>
             </div>
             <div class="header-actions">
                 <button class="action-btn" onclick="window.app.openInbox()">🔔 <span id="msg-badge" class="badge-count">0</span></button>
-                <!-- إضافة: زر الوضع الليلي -->
                 <button class="action-btn" onclick="window.app.toggleTheme()">🌓</button>
-                <!-- إضافة: زر تصدير التقرير -->
-                <button class="action-btn" onclick="window.app.exportCSV()" style="color:var(--work)">📥</button>
-                
+                <!-- Print Button (Hidden by default) -->
+                <button id="btn-export" class="action-btn" onclick="window.app.exportCSV()" style="color:var(--work); display:none;">📥</button>
                 <button class="action-btn" onclick="window.app.openSearchModal()">🔍</button>
                 <button class="action-btn" id="btn-settings" onclick="window.app.openSettings()">⚙️</button>
                 <button class="action-btn logout-btn" onclick="handleLogout()" style="color:#ef4444; background:rgba(239,68,68,0.1); border-color:rgba(239,68,68,0.2);">↪️</button>
+            </div>
+        </div>
+
+        <!-- NEW: Admin Employee Dropdown on Main Page -->
+        <div id="admin-controls-bar">
+            <label style="color:var(--primary); font-weight:bold; font-size:0.9rem; display:block; margin-bottom:5px;">استعراض سجل موظف:</label>
+            <div class="admin-select-wrapper">
+                <select id="main-admin-select" class="app-input" onchange="window.app.adminSelectUserMain()">
+                    <option value="">-- اختر موظفاً --</option>
+                </select>
             </div>
         </div>
 
@@ -244,11 +248,6 @@
             <div class="stat-card" onclick="window.app.showDetails('week')"><h4>هذا الأسبوع</h4><div class="val" id="st-week">0</div></div>
             <div class="stat-card" onclick="window.app.showDetails('month')"><h4>هذا الشهر</h4><div class="val" id="st-month">0</div></div>
             <div class="stat-card full-width" onclick="window.app.showDetails('year')"><h4>مجموع السنة</h4><div class="val" id="st-year">0</div></div>
-        </div>
-
-        <!-- إضافة: منطقة الرسم البياني -->
-        <div class="chart-box">
-            <canvas id="myChart"></canvas>
         </div>
 
         <div class="calendar-box">
@@ -269,11 +268,14 @@
                 <div class="legend-dot lg-nat" onclick="window.app.showLegendToast('عيد وطني')"></div>
             </div>
         </div>
+
+        <!-- Chart -->
+        <div class="chart-box">
+            <canvas id="myChart"></canvas>
+        </div>
     </div>
 
     <!-- Modals -->
-    
-    <!-- Confirm Modal -->
     <div class="modal-overlay" id="confirmModal">
         <div class="modal-content">
             <h3 style="color:#f44336; margin-bottom:10px;">⚠️ تأكيد الحذف</h3>
@@ -285,7 +287,6 @@
         </div>
     </div>
 
-    <!-- Msg Popup -->
     <div class="modal-overlay" id="msgPopup">
         <div class="modal-content">
             <h3 style="color:var(--primary); margin-bottom:10px;">📩 رسالة إدارية</h3>
@@ -294,7 +295,6 @@
         </div>
     </div>
 
-    <!-- Inbox -->
     <div class="modal-overlay" id="inboxModal">
         <div class="modal-content">
             <h3 style="text-align:center;">صندوق الرسائل</h3>
@@ -303,7 +303,6 @@
         </div>
     </div>
 
-    <!-- Day Edit -->
     <div class="modal-overlay" id="dayModal">
         <div class="modal-content">
             <h3 id="modal-title" style="text-align:center; margin-bottom:20px;"></h3>
@@ -319,13 +318,7 @@
                 <label>التوقيت:</label><select id="d-preset" class="app-input" onchange="window.app.applyPreset()" style="margin-bottom:5px;"><option value="manual">-- اختيار توقيت --</option></select>
                 <div style="display:flex; gap:10px;"><input type="time" id="d-start" class="app-input"><input type="time" id="d-end" class="app-input"></div>
             </div>
-            
-            <!-- إضافة: حقل الملاحظات -->
-            <div style="margin-top:10px;">
-                <label>ملاحظة:</label>
-                <textarea id="d-note" class="app-input" rows="2" placeholder="ملاحظات إضافية (اختياري)..."></textarea>
-            </div>
-
+            <div style="margin-top:10px;"><label>ملاحظة:</label><textarea id="d-note" class="app-input" rows="2" placeholder="ملاحظات إضافية (اختياري)..."></textarea></div>
             <div class="modal-btns">
                 <button class="btn-save" onclick="window.app.saveDay()">حفظ</button>
                 <button class="btn-del" onclick="window.app.askDelete()">مسح</button>
@@ -334,7 +327,6 @@
         </div>
     </div>
 
-    <!-- Search -->
     <div class="modal-overlay" id="searchModal">
         <div class="modal-content">
             <h3 id="search-title" style="text-align:center;">بحث / تفاصيل</h3>
@@ -363,15 +355,26 @@
         </div>
     </div>
 
-    <!-- Settings -->
+    <!-- Settings with Admin Panel -->
     <div class="modal-overlay" id="settingsModal">
         <div class="modal-content">
             <h3 style="text-align:center;">الإعدادات</h3>
             
-            <div id="admin-section" style="display:none; margin-bottom:15px;">
-                <div style="background:rgba(67, 97, 238, 0.1); padding:10px; border-radius:10px; margin-bottom:10px;">
-                     <label class="form-label" style="color:var(--primary); font-weight:bold;">اسم البرنامج (للكل):</label>
-                     <input type="text" id="p-app-name" class="app-input" placeholder="مثال: شركة النور">
+            <div id="admin-section" style="display:none; margin-bottom:15px; border-bottom: 2px dashed var(--primary); padding-bottom: 15px;">
+                <h4 style="color:var(--primary);">لوحة تحكم المدير</h4>
+                
+                <!-- Pending Approvals -->
+                <div style="background:rgba(244, 67, 54, 0.1); padding:10px; border-radius:10px; margin-bottom:10px;">
+                    <label class="form-label" style="color:var(--absent); font-weight:bold;">طلبات التسجيل المعلقة:</label>
+                    <div id="pending-users-list" style="margin-top:5px;"></div>
+                </div>
+
+                 <!-- Presets Management -->
+                 <div style="background:rgba(67, 97, 238, 0.1); padding:10px; border-radius:10px; margin-bottom:10px;">
+                    <label class="form-label" style="color:var(--primary); font-weight:bold;">إدارة التوقيتات الافتراضية:</label>
+                    <div style="display:flex; gap:5px;"><input type="text" id="p-name" class="app-input" placeholder="اسم" style="width:30%"><input type="time" id="p-start" class="app-input" style="width:30%"><input type="time" id="p-end" class="app-input" style="width:30%"></div>
+                    <button class="btn-main" onclick="window.app.addPreset()" style="font-size:0.8rem; padding:8px;">+ إضافة توقيت</button>
+                    <div id="presets-list" class="preset-list" style="margin-top:10px; max-height:100px; overflow-y:auto;"></div>
                 </div>
 
                 <div style="background:rgba(255, 152, 0, 0.1); padding:10px; border-radius:10px; border:1px solid #ffcc80; margin-bottom:10px;">
@@ -379,17 +382,10 @@
                     <textarea id="admin-msg-text" class="app-input" rows="2" placeholder="اكتب الرسالة هنا..."></textarea>
                     <button class="btn-main" style="background:#ff9800; margin-top:5px;" onclick="window.app.sendBroadcast()">إرسال للكل</button>
                 </div>
-
-                <div style="background:rgba(67, 97, 238, 0.1); padding:10px; border-radius:10px;">
-                    <label class="form-label" style="color:var(--primary); font-weight:bold;">إدارة التوقيتات:</label>
-                    <div style="display:flex; gap:5px;"><input type="text" id="p-name" class="app-input" placeholder="اسم" style="width:30%"><input type="time" id="p-start" class="app-input" style="width:30%"><input type="time" id="p-end" class="app-input" style="width:30%"></div>
-                    <button class="btn-main" onclick="window.app.addPreset()" style="font-size:0.8rem; padding:8px;">+ إضافة</button>
-                    <div id="presets-list" class="preset-list" style="margin-top:10px; max-height:100px; overflow-y:auto;"></div>
-                </div>
             </div>
 
             <div style="background:rgba(76, 175, 80, 0.1); padding:10px; border-radius:10px; margin-bottom:15px;">
-                <label class="form-label">الاسم الكامل:</label><input type="text" id="s-name" class="app-input" placeholder="اسم الموظف">
+                <label class="form-label">الاسم الكامل (مطلوب):</label><input type="text" id="s-name" class="app-input" placeholder="اسم الموظف">
                 <label class="form-label">تاريخ التحاقي:</label><input type="date" id="s-join" class="app-input">
             </div>
             <div style="background:rgba(255, 152, 0, 0.1); padding:10px; border-radius:10px; margin-bottom:15px;">
@@ -398,7 +394,7 @@
                 <button class="btn-main" onclick="window.app.addAdj()" style="background:#ff9800; font-size:0.8rem; padding:8px;">+ إضافة</button>
                 <div id="adj-list" style="margin-top:10px;"></div>
             </div>
-            <div class="modal-btns"><button class="btn-save" onclick="window.app.saveSettings()">حفظ الكل</button></div>
+            <div class="modal-btns"><button class="btn-save" onclick="window.app.saveSettings()">حفظ</button></div>
             <button class="btn-close-modal" onclick="document.getElementById('settingsModal').style.display='none'">إغلاق</button>
         </div>
     </div>
@@ -406,8 +402,8 @@
     <!-- Firebase SDK -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getFirestore, doc, setDoc, getDoc, collection, getDocs, onSnapshot, updateDoc, deleteField, addDoc, serverTimestamp, query, orderBy } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-        import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, sendPasswordResetEmail, sendEmailVerification, setPersistence, browserLocalPersistence, browserSessionPersistence } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, getDoc, collection, getDocs, onSnapshot, updateDoc, deleteField, addDoc, deleteDoc, serverTimestamp, query, orderBy, where } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, sendPasswordResetEmail, setPersistence, browserLocalPersistence, browserSessionPersistence } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
         const firebaseConfig = {
           apiKey: "AIzaSyDhpORuBt8k6YWDLUgRrnqfC8lSS97LexQ",
@@ -422,6 +418,10 @@
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
         const auth = getAuth(app);
+        
+        const ADMIN_EMAIL = "benhazem.print@gmail.com";
+        let unsubEvents = null;
+        let unsubSettings = null;
 
         // --- GLOBAL EXPORTS ---
         window.showLoader = (s) => document.getElementById('loader').style.display = s?'flex':'none';
@@ -443,10 +443,16 @@
             try {
                 await setPersistence(auth, rem ? browserLocalPersistence : browserSessionPersistence);
                 const cred = await signInWithEmailAndPassword(auth, e, p);
-                if(!cred.user.emailVerified) {
-                    await signOut(auth);
-                    window.showError('login-error', 'يرجى تفعيل البريد الإلكتروني أولاً');
-                    window.showLoader(false);
+                
+                const uDoc = await getDoc(doc(db, "users", cred.user.uid));
+                if (uDoc.exists()) {
+                    const data = uDoc.data();
+                    if (e !== ADMIN_EMAIL && data.status === 'pending') {
+                        await signOut(auth);
+                        window.showError('login-error', 'الحساب قيد المراجعة. انتظر تفعيل المدير.');
+                        window.showLoader(false);
+                        return;
+                    }
                 }
             } catch(error) {
                 window.showLoader(false);
@@ -455,24 +461,36 @@
         };
 
         window.handleSignup = async () => {
+            const name = document.getElementById('reg-name').value;
             const e = document.getElementById('reg-email').value;
             const p = document.getElementById('reg-pass').value;
             const c = document.getElementById('reg-confirm').value;
+            
+            if(!name) return window.showError('reg-error', 'يرجى إدخال الاسم');
             if(!e || !p || !c) return window.showError('reg-error', 'املأ جميع الخانات');
             if(p !== c) return window.showError('reg-error', 'كلمات المرور غير متطابقة');
             if(p.length < 6) return window.showError('reg-error', 'كلمة المرور قصيرة');
+            
             window.showLoader(true);
             try {
-                const snap = await getDocs(collection(db, "users"));
-                const role = snap.empty ? 'admin' : 'user';
                 const cred = await createUserWithEmailAndPassword(auth, e, p);
-                await sendEmailVerification(cred.user);
-                await setDoc(doc(db, "users", cred.user.uid), { email: e, role: role });
-                await setDoc(doc(db, "settings", cred.user.uid), { joinDate: '', fullName: '', adjustments: [], dismissedMsgs: [], deletedMsgs: [] });
-                if(role === 'admin') await setDoc(doc(db, "config", "general"), { presets: [{label:'عادي', start:'08:00', end:'16:00'}] });
+                await setDoc(doc(db, "users", cred.user.uid), { 
+                    email: e, 
+                    role: 'user', 
+                    status: 'pending',
+                    displayName: name 
+                });
+                await setDoc(doc(db, "settings", cred.user.uid), { 
+                    joinDate: '', 
+                    fullName: name, 
+                    adjustments: [], dismissedMsgs: [], deletedMsgs: [] 
+                });
+                
                 await signOut(auth);
-                document.getElementById('reg-success').textContent = "تم التسجيل! راجع بريدك للتفعيل.";
+                document.getElementById('reg-success').textContent = "تم إرسال طلبك. انتظر تفعيل الحساب من المدير.";
                 document.getElementById('reg-success').style.display = 'block';
+                document.querySelectorAll('#view-signup input, #view-signup .btn-main').forEach(el => el.style.display = 'none');
+                
             } catch(err) { window.showError('reg-error', err.code==='auth/email-already-in-use'?'الإيميل مسجل':'خطأ في التسجيل'); } finally { window.showLoader(false); }
         };
 
@@ -490,20 +508,20 @@
         window.handleLogout = async () => { await signOut(auth); window.location.reload(); };
 
         window.saveData = async (type, data) => {
-            const u = auth.currentUser;
-            if(!u) return;
+            const uid = window.currentViewedUid || auth.currentUser.uid;
+            if(!uid) return;
             try {
-                if(type === 'personal_settings') await setDoc(doc(db, 'settings', u.uid), data, {merge:true});
+                if(type === 'personal_settings') await setDoc(doc(db, 'settings', uid), data, {merge:true});
                 else if(type === 'global_config') await setDoc(doc(db, 'config', 'general'), data, {merge:true});
-                else if(type === 'events') await setDoc(doc(db, 'attendance', u.uid), {events: data}, {merge:true});
+                else if(type === 'events') await setDoc(doc(db, 'attendance', uid), {events: data}, {merge:true});
             } catch(e) { console.log(e); }
         };
 
         window.fbDeleteDay = async (dateKey) => {
-            const u = auth.currentUser;
-            if(!u) return;
+            const uid = window.currentViewedUid || auth.currentUser.uid;
+            if(!uid) return;
             try {
-                await updateDoc(doc(db, 'attendance', u.uid), { [`events.${dateKey}`]: deleteField() });
+                await updateDoc(doc(db, 'attendance', uid), { [`events.${dateKey}`]: deleteField() });
             } catch(e) { console.error("Error deleting:", e); }
         };
 
@@ -520,41 +538,135 @@
             } catch(e) { alert("خطأ في الإرسال"); }
         };
 
-        onAuthStateChanged(auth, async (user) => {
-            if(user && user.emailVerified) {
-                document.getElementById('auth-overlay').style.display = 'none';
-                document.getElementById('app-container').style.display = 'block';
-                document.getElementById('u-name').textContent = user.email.split('@')[0];
-                
-                // Initialize Theme
-                window.app.initTheme();
+        // --- Approve User ---
+        window.approveUser = async (uid) => {
+            if(!confirm("هل أنت متأكد من تفعيل هذا الموظف؟")) return;
+            try {
+                await updateDoc(doc(db, "users", uid), { status: "active" });
+                alert("تم تفعيل الحساب بنجاح");
+                window.app.loadAdminData();
+            } catch(e) { 
+                alert("حدث خطأ أثناء التفعيل"); 
+                console.error(e); 
+            }
+        };
 
-                window.showLoader(true);
+        // --- Reject User ---
+        window.rejectUser = async (uid) => {
+            if(!confirm("هل أنت متأكد من رفض وحذف هذا الطلب؟")) return;
+            try {
+                await deleteDoc(doc(db, "users", uid));
+                await deleteDoc(doc(db, "settings", uid));
+                alert("تم حذف الطلب بنجاح");
+                window.app.loadAdminData();
+            } catch(e) {
+                alert("حدث خطأ أثناء الحذف");
+                console.error(e);
+            }
+        };
+
+        window.initUserData = (uid) => {
+            window.currentViewedUid = uid;
+            
+            if(unsubEvents) unsubEvents();
+            if(unsubSettings) unsubSettings();
+            
+            window.showLoader(true);
+            
+            unsubEvents = onSnapshot(doc(db, "attendance", uid), (docSnap) => {
+                if(docSnap.exists()) window.appData.events = docSnap.data().events || {};
+                else window.appData.events = {};
+                window.app.renderCalendar();
+                window.app.checkAutoFill();
+            });
+
+            unsubSettings = onSnapshot(doc(db, "settings", uid), (docSnap) => {
+                if(docSnap.exists()) window.appData.personal = docSnap.data() || {joinDate:'', fullName:'', adjustments:[], dismissedMsgs:[], deletedMsgs:[]};
+                else window.appData.personal = {joinDate:'', fullName:'', adjustments:[], dismissedMsgs:[], deletedMsgs:[]};
                 
-                const uDoc = await getDoc(doc(db, 'users', user.uid));
-                if(uDoc.exists()) {
-                    window.appData.role = uDoc.data().role;
-                    if(window.appData.role === 'admin') document.getElementById('admin-section').style.display = 'block';
+                if(!window.appData.personal.dismissedMsgs) window.appData.personal.dismissedMsgs = [];
+                if(!window.appData.personal.deletedMsgs) window.appData.personal.deletedMsgs = [];
+                
+                const displayName = window.appData.personal.fullName || 'موظف';
+                
+                if(!window.appData.personal.fullName && uid === auth.currentUser.uid) {
+                     alert("تنبيه: يرجى تسجيل الاسم الكامل في الإعدادات للاستمرار في استخدام البرنامج.");
+                     window.app.openSettings();
                 }
 
-                // Listeners
-                onSnapshot(doc(db, "attendance", user.uid), (doc) => {
-                    if(doc.exists()) window.appData.events = doc.data().events || {};
-                    window.app.renderCalendar();
-                    window.app.checkAutoFill();
-                });
-                onSnapshot(doc(db, "settings", user.uid), (doc) => {
-                    if(doc.exists()) window.appData.personal = doc.data() || {joinDate:'', fullName:'', adjustments:[], dismissedMsgs:[], deletedMsgs:[]};
-                    // Ensure arrays exist
-                    if(!window.appData.personal.dismissedMsgs) window.appData.personal.dismissedMsgs = [];
-                    if(!window.appData.personal.deletedMsgs) window.appData.personal.deletedMsgs = [];
-                    
-                    const displayName = window.appData.personal.fullName || user.email.split('@')[0];
+                if (uid === auth.currentUser.uid) {
                     document.getElementById('u-name').textContent = displayName;
-                    
-                    window.app.calcStats();
-                    window.app.checkMessages();
-                });
+                    document.getElementById('admin-view-indicator').style.display = 'none';
+                } else {
+                    document.getElementById('viewed-user-name').textContent = displayName;
+                    document.getElementById('admin-view-indicator').style.display = 'block';
+                }
+                
+                window.app.calcStats();
+                window.app.checkMessages();
+                window.showLoader(false);
+            });
+        };
+
+        onAuthStateChanged(auth, async (user) => {
+            if(user) {
+                const isAdmin = (user.email === ADMIN_EMAIL);
+                
+                if(isAdmin) {
+                     document.getElementById('admin-section').style.display = 'block';
+                     document.getElementById('admin-controls-bar').style.display = 'block'; // Show dropdown on main page
+                     document.getElementById('btn-export').style.display = 'flex'; // Show export button
+                     
+                     window.appData.role = 'admin';
+                     window.app.loadAdminData = async () => {
+                         const q = query(collection(db, "users"));
+                         const snap = await getDocs(q);
+                         const pendingDiv = document.getElementById('pending-users-list');
+                         const empSelect = document.getElementById('main-admin-select'); // Main Page Select
+                         
+                         pendingDiv.innerHTML = '';
+                         // Reset Dropdown
+                         empSelect.innerHTML = '<option value="' + user.uid + '">حسابي (المدير)</option>';
+                         
+                         let pendingCount = 0;
+
+                         snap.forEach(doc => {
+                             const d = doc.data();
+                             const uid = doc.id;
+                             const uName = d.displayName ? d.displayName : d.email;
+                             
+                             if (d.status === 'active' || !d.status || d.email === ADMIN_EMAIL) {
+                                 if(uid !== user.uid) { 
+                                     empSelect.innerHTML += `<option value="${uid}">${uName}</option>`;
+                                 }
+                             }
+                             
+                             if (d.status === 'pending') {
+                                 pendingCount++;
+                                 const row = document.createElement('div');
+                                 row.className = 'admin-user-row';
+                                 row.innerHTML = `
+                                    <span>${uName}</span>
+                                    <div>
+                                        <button class="btn-small btn-reject" onclick="window.rejectUser('${uid}')">إلغاء</button>
+                                        <button class="btn-small btn-approve" onclick="window.approveUser('${uid}')">تفعيل</button>
+                                    </div>
+                                 `;
+                                 pendingDiv.appendChild(row);
+                             }
+                         });
+                         
+                         if(pendingCount === 0) pendingDiv.innerHTML = '<small style="color:#999">لا توجد طلبات جديدة</small>';
+                     };
+                     window.app.loadAdminData();
+                }
+
+                document.getElementById('auth-overlay').style.display = 'none';
+                document.getElementById('app-container').style.display = 'block';
+                
+                window.app.initTheme();
+                window.initUserData(user.uid);
+
                 onSnapshot(doc(db, "config", "general"), (doc) => {
                     if(doc.exists()) {
                         window.appData.global = doc.data() || {presets:[], appName:'نظام الحضور الذكي'};
@@ -574,9 +686,7 @@
                     window.app.checkMessages();
                 });
 
-                window.showLoader(false);
             } else {
-                if(user) await signOut(auth);
                 document.getElementById('auth-overlay').style.display = 'flex';
                 document.getElementById('app-container').style.display = 'none';
                 window.showLoader(false);
@@ -586,16 +696,18 @@
 
     <!-- App Logic -->
     <script>
+        const currentYearVal = new Date().getFullYear();
+        let currentDate = new Date(currentYearVal, 0, 1);
+        
         const nationalHolidays = { "1-11":"وثيقة الاستقلال","1-14":"رأس السنة الأمازيغية","5-1":"عيد الشغل","7-30":"عيد العرش","8-14":"وادي الذهب","8-20":"ثورة الملك والشعب","8-21":"عيد الشباب","10-31":"عيد الوحدة","11-6":"المسيرة الخضراء","11-18":"عيد الاستقلال","12-9":"عيد الوساطة" };
         const dayNames = ["إثنين", "ثلاثاء", "أربعاء", "خميس", "جمعة", "سبت", "أحد"];
         const monthNames = ["يناير", "فبراير", "مارس", "أبريل", "مايو", "يونيو", "يوليو", "أغسطس", "سبتمبر", "أكتوبر", "نوفمبر", "ديسمبر"];
-        let currentDate = new Date(2026, 0, 1);
         let selectedKey = null;
         let activeMsgId = null;
         let deleteType = null;
         let pendingMsgId = null;
-        // Chart Instance
         window.myChartInstance = null;
+        window.currentViewedUid = null;
 
         window.appData = {
             role: 'user', events: {}, 
@@ -605,7 +717,6 @@
         };
 
         window.app = {
-            // --- إضافة: إدارة الوضع الليلي ---
             initTheme: () => {
                 const theme = localStorage.getItem('theme');
                 if(theme === 'dark') document.body.classList.add('dark-mode');
@@ -615,50 +726,52 @@
                 document.body.classList.toggle('dark-mode');
                 const isDark = document.body.classList.contains('dark-mode');
                 localStorage.setItem('theme', isDark ? 'dark' : 'light');
-                // تحديث الرسم البياني ليتناسب مع الألوان (اختياري)
                 window.app.renderChart();
             },
 
-            // --- إضافة: تصدير CSV ---
+            adminSelectUserMain: () => {
+                const uid = document.getElementById('main-admin-select').value;
+                if(uid) {
+                    window.initUserData(uid);
+                }
+            },
+
             exportCSV: () => {
                 if(Object.keys(window.appData.events).length === 0) return alert("لا توجد بيانات للتصدير");
+                const userName = document.getElementById('u-name').textContent;
+                const viewedName = window.currentViewedUid ? (document.getElementById('viewed-user-name').textContent || userName) : userName;
                 
-                let csvContent = "data:text/csv;charset=utf-8,\uFEFF"; // BOM لدعم العربية
+                let csvContent = "data:text/csv;charset=utf-8,\uFEFF"; 
+                csvContent += `تقرير الحضور: ${viewedName}\n`;
                 csvContent += "التاريخ,النوع,ساعات العمل/القيمة,ملاحظات\n";
 
                 const events = Object.entries(window.appData.events).sort();
                 events.forEach(([date, val]) => {
                     let typeAr = { work:'عمل', holiday:'عطلة', sick:'مرض', absent:'غياب', recup:'تعويض', eid:'عيد' }[val.type] || val.type;
                     let hours = val.hours ? val.hours + 'س' : 'يوم كامل';
-                    // إضافة الملاحظات للتقرير
                     let note = val.eidName || val.note || ''; 
-                    // تنظيف النص من الفواصل لتجنب كسر ملف CSV
                     note = note.replace(/,/g, ' '); 
-                    
                     csvContent += `${date},${typeAr},${hours},${note}\n`;
                 });
 
                 const encodedUri = encodeURI(csvContent);
                 const link = document.createElement("a");
                 link.setAttribute("href", encodedUri);
-                link.setAttribute("download", `تقرير_الحضور_${new Date().toISOString().slice(0,10)}.csv`);
+                link.setAttribute("download", `تقرير_${viewedName}_${new Date().toISOString().slice(0,10)}.csv`);
                 document.body.appendChild(link);
                 link.click();
                 document.body.removeChild(link);
             },
 
-            // --- إضافة: الرسم البياني ---
             renderChart: () => {
                 const ctx = document.getElementById('myChart');
                 if(!ctx) return;
                 
-                // حساب التكرارات
                 let counts = { work:0, holiday:0, sick:0, absent:0, eid:0 };
                 Object.values(window.appData.events).forEach(e => {
                     if(counts[e.type] !== undefined) counts[e.type]++;
                 });
 
-                // الألوان حسب الوضع
                 const isDark = document.body.classList.contains('dark-mode');
                 const textColor = isDark ? '#e0e0e0' : '#2b2d42';
 
@@ -684,7 +797,6 @@
                 });
             },
 
-            // Messages
             sendBroadcast: () => {
                 const txt = document.getElementById('admin-msg-text').value;
                 if(!txt) return alert("اكتب رسالة");
@@ -744,10 +856,9 @@
                 document.getElementById('inboxModal').style.display = 'flex';
             },
 
-            // Calendar
             checkAutoFill: () => {
                 const today = new Date(); today.setHours(0,0,0,0);
-                let startCheck = new Date(2026, 0, 1);
+                let startCheck = new Date(today.getFullYear(), 0, 1);
                 if (today < startCheck) return;
                 
                 let lastStart = '08:00';
@@ -808,8 +919,6 @@
                     const natKey = `${m+1}-${i}`;
                     const isNat = nationalHolidays[natKey];
                     let natClass = '';
-
-                    // إضافة: مؤشر الملاحظات
                     let noteIndicator = '';
                     if(evt && evt.note && evt.note.trim() !== '') {
                         noteIndicator = '<div class="note-dot"></div>';
@@ -829,11 +938,17 @@
                     const currentLoopDate = new Date(y, m, i);
                     const now = new Date();
                     now.setHours(0,0,0,0);
-                    const isFuture = currentLoopDate.setHours(0,0,0,0) > now.getTime();
+                    
+                    // --- CHANGED: Allow today AND +1 day future
+                    const allowedLimit = new Date();
+                    allowedLimit.setDate(allowedLimit.getDate() + 1); // Allow tomorrow
+                    allowedLimit.setHours(23,59,59,999);
+                    
+                    const isFuture = currentLoopDate > allowedLimit;
                     
                     const isWeekend = (currentLoopDate.getDay() === 0 || currentLoopDate.getDay() === 6);
                     const weekendClass = isWeekend ? 'weekend' : '';
-                    const todayClass = (currentLoopDate.getTime() === now.getTime()) ? 'today' : '';
+                    const todayClass = (currentLoopDate.setHours(0,0,0,0) === now.getTime()) ? 'today' : '';
                     const futureClass = isFuture ? 'future' : '';
                     
                     const isClickable = !isFuture || isNat;
@@ -858,7 +973,13 @@
                 
                 const today = new Date();
                 today.setHours(0,0,0,0);
-                if(new Date(key).setHours(0,0,0,0) > today.getTime() && !natName) return;
+                
+                // Allow tomorrow check
+                const allowedLimit = new Date();
+                allowedLimit.setDate(allowedLimit.getDate() + 1);
+                allowedLimit.setHours(23,59,59,999);
+
+                if(new Date(key) > allowedLimit && !natName) return;
 
                 selectedKey = key;
                 document.getElementById('modal-title').textContent = key;
@@ -877,7 +998,6 @@
                 document.getElementById('d-end').value = evt.end || '';
                 document.getElementById('d-eid-name').value = evt.eidName || '';
                 document.getElementById('d-count').value = 1;
-                // إضافة: تعبئة الملاحظات
                 document.getElementById('d-note').value = evt.note || '';
                 
                 if(natName && !window.appData.events[key]) document.getElementById('d-eid-status').value = 'rest';
@@ -927,7 +1047,6 @@
 
             saveDay: () => {
                 const type = document.getElementById('d-type').value;
-                // إضافة: قراءة الملاحظة
                 const note = document.getElementById('d-note').value;
                 let targetKey = selectedKey;
 
@@ -953,7 +1072,7 @@
                             const [h1, m1] = s.split(':').map(Number);
                             const [h2, m2] = e.split(':').map(Number);
                             let diff = (h2*60+m2) - (h1*60+m1);
-                            if(s > e) { // Night shift fix
+                            if(s > e) { // Night shift
                                 diff += 24*60;
                                 const currentD = new Date(selectedKey);
                                 currentD.setDate(currentD.getDate() + 1);
@@ -1000,9 +1119,8 @@
                 document.getElementById('confirmModal').style.display = 'none';
             },
 
-            // --- Logic Hub ---
             getLeaveBreakdown: () => {
-                const currentY = new Date(2026, 0, 1).getFullYear();
+                const currentY = new Date().getFullYear();
                 const joinDateStr = window.appData.personal.joinDate;
                 let pools = [];
 
@@ -1015,8 +1133,8 @@
                 if(joinDateStr) {
                     const joinD = new Date(joinDateStr);
                     const joinY = joinD.getFullYear();
-                    const startCalc = Math.max(joinY, 2026);
-                    for(let y = startCalc; y <= 2026; y++) {
+                    const startCalc = Math.max(joinY, currentY); 
+                    for(let y = startCalc; y <= currentY; y++) {
                         let months = 12;
                         if(y === joinY) months = 12 - joinD.getMonth();
                         let seniority = Math.floor((y - joinY)/5) * 1.5;
@@ -1099,7 +1217,6 @@
                 document.getElementById('st-month').textContent = tMonth.toFixed(1);
                 document.getElementById('st-year').textContent = tYear.toFixed(1);
                 
-                // تحديث الرسم البياني
                 window.app.renderChart();
             },
 
@@ -1231,12 +1348,14 @@
                     document.getElementById('p-start').value = '';
                     document.getElementById('p-end').value = '';
                     window.app.renderSettingsLists();
+                    window.saveData('global_config', window.appData.global);
                 }
             },
 
             delPreset: (i) => {
                 window.appData.global.presets.splice(i, 1);
                 window.app.renderSettingsLists();
+                window.saveData('global_config', window.appData.global);
             },
 
             addAdj: () => {
@@ -1276,10 +1395,7 @@
             saveSettings: () => {
                 window.appData.personal.joinDate = document.getElementById('s-join').value;
                 window.appData.personal.fullName = document.getElementById('s-name').value;
-                window.appData.global.appName = document.getElementById('p-app-name').value || window.appData.global.appName;
-                
                 window.saveData('personal_settings', window.appData.personal);
-                if(window.appData.role === 'admin') window.saveData('global_config', window.appData.global);
                 document.getElementById('settingsModal').style.display = 'none';
             },
 
