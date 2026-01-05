@@ -80,7 +80,7 @@
 
         /* Admin Controls on Main Page */
         #admin-controls-bar { 
-            display:none; /* Hidden by default, shown for admin */
+            display:none; /* Hidden by default */
             background: var(--surface); padding: 10px; border-radius: var(--radius); 
             margin-bottom: 20px; border: 1px dashed var(--primary);
         }
@@ -163,9 +163,10 @@
         
         /* Admin Styles */
         .admin-user-row { display: flex; justify-content: space-between; align-items: center; padding: 10px; border-bottom: 1px solid var(--border); }
-        .btn-small { padding: 5px 10px; font-size: 0.8rem; border-radius: 6px; cursor: pointer; border: none; }
+        .action-buttons { display: flex; gap: 6px; }
+        .btn-small { padding: 5px 12px; font-size: 0.8rem; border-radius: 6px; cursor: pointer; border: none; font-weight: bold; }
         .btn-approve { background: var(--work); color: white; }
-        .btn-reject { background: var(--absent); color: white; margin-right: 5px; }
+        .btn-reject { background: var(--absent); color: white; }
     </style>
 </head>
 <body>
@@ -222,7 +223,7 @@
             <div class="header-actions">
                 <button class="action-btn" onclick="window.app.openInbox()">🔔 <span id="msg-badge" class="badge-count">0</span></button>
                 <button class="action-btn" onclick="window.app.toggleTheme()">🌓</button>
-                <!-- Print Button (Hidden by default) -->
+                <!-- Print Button (Hidden by default, shown for admin via JS) -->
                 <button id="btn-export" class="action-btn" onclick="window.app.exportCSV()" style="color:var(--work); display:none;">📥</button>
                 <button class="action-btn" onclick="window.app.openSearchModal()">🔍</button>
                 <button class="action-btn" id="btn-settings" onclick="window.app.openSettings()">⚙️</button>
@@ -399,7 +400,7 @@
         </div>
     </div>
 
-    <!-- Firebase SDK -->
+    <!-- Firebase SDK & Logic -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
         import { getFirestore, doc, setDoc, getDoc, collection, getDocs, onSnapshot, updateDoc, deleteField, addDoc, deleteDoc, serverTimestamp, query, orderBy, where } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
@@ -432,6 +433,62 @@
             document.querySelectorAll('.error-msg,.success-msg').forEach(e=>e.style.display='none');
         };
         window.togglePass = (id) => { const el=document.getElementById(id); el.type = el.type==='password'?'text':'password'; };
+
+        // --- Event Delegation for Dynamic Buttons (FIX FOR BUTTONS NOT WORKING) ---
+        // This listener is attached to the parent container once.
+        // It detects clicks on children buttons and executes the module-scoped functions.
+        const pendingListContainer = document.getElementById('pending-users-list');
+        pendingListContainer.addEventListener('click', async (e) => {
+            const btn = e.target.closest('button');
+            if(!btn) return;
+
+            const action = btn.dataset.action;
+            const uid = btn.dataset.id;
+            
+            if (!uid) return;
+
+            if (action === 'activate') {
+                await handleActivateUser(uid);
+            } else if (action === 'delete') {
+                await handleDeleteUser(uid);
+            }
+        });
+
+        // --- Admin Functions (Module Scoped) ---
+        async function handleActivateUser(uid) {
+            if(!confirm("هل أنت متأكد من تفعيل هذا الموظف؟")) return;
+            window.showLoader(true);
+            try {
+                await updateDoc(doc(db, "users", uid), { status: "active" });
+                alert("✅ تم تفعيل الحساب بنجاح");
+                window.app.loadAdminData();
+            } catch(e) { 
+                console.error(e);
+                alert("❌ حدث خطأ أثناء التفعيل"); 
+            } finally {
+                window.showLoader(false);
+            }
+        }
+
+        async function handleDeleteUser(uid) {
+            if(!confirm("⚠️ تحذير: هل أنت متأكد من حذف هذا الطلب نهائياً؟")) return;
+            window.showLoader(true);
+            try {
+                await deleteDoc(doc(db, "users", uid));
+                // Optional: Clean related docs if they exist
+                try { await deleteDoc(doc(db, "settings", uid)); } catch(e){}
+                try { await deleteDoc(doc(db, "attendance", uid)); } catch(e){}
+                
+                alert("🗑️ تم حذف الطلب بنجاح");
+                window.app.loadAdminData();
+            } catch(e) {
+                console.error(e);
+                alert("❌ حدث خطأ أثناء الحذف");
+            } finally {
+                window.showLoader(false);
+            }
+        }
+
 
         // --- Auth Logic ---
         window.handleLogin = async () => {
@@ -538,33 +595,6 @@
             } catch(e) { alert("خطأ في الإرسال"); }
         };
 
-        // --- Approve User ---
-        window.approveUser = async (uid) => {
-            if(!confirm("هل أنت متأكد من تفعيل هذا الموظف؟")) return;
-            try {
-                await updateDoc(doc(db, "users", uid), { status: "active" });
-                alert("تم تفعيل الحساب بنجاح");
-                window.app.loadAdminData();
-            } catch(e) { 
-                alert("حدث خطأ أثناء التفعيل"); 
-                console.error(e); 
-            }
-        };
-
-        // --- Reject User ---
-        window.rejectUser = async (uid) => {
-            if(!confirm("هل أنت متأكد من رفض وحذف هذا الطلب؟")) return;
-            try {
-                await deleteDoc(doc(db, "users", uid));
-                await deleteDoc(doc(db, "settings", uid));
-                alert("تم حذف الطلب بنجاح");
-                window.app.loadAdminData();
-            } catch(e) {
-                alert("حدث خطأ أثناء الحذف");
-                console.error(e);
-            }
-        };
-
         window.initUserData = (uid) => {
             window.currentViewedUid = uid;
             
@@ -589,6 +619,7 @@
                 
                 const displayName = window.appData.personal.fullName || 'موظف';
                 
+                // Name check for self
                 if(!window.appData.personal.fullName && uid === auth.currentUser.uid) {
                      alert("تنبيه: يرجى تسجيل الاسم الكامل في الإعدادات للاستمرار في استخدام البرنامج.");
                      window.app.openSettings();
@@ -614,15 +645,15 @@
                 
                 if(isAdmin) {
                      document.getElementById('admin-section').style.display = 'block';
-                     document.getElementById('admin-controls-bar').style.display = 'block'; // Show dropdown on main page
-                     document.getElementById('btn-export').style.display = 'flex'; // Show export button
+                     document.getElementById('admin-controls-bar').style.display = 'block';
+                     document.getElementById('btn-export').style.display = 'flex'; // Enable export for admin
                      
                      window.appData.role = 'admin';
                      window.app.loadAdminData = async () => {
                          const q = query(collection(db, "users"));
                          const snap = await getDocs(q);
                          const pendingDiv = document.getElementById('pending-users-list');
-                         const empSelect = document.getElementById('main-admin-select'); // Main Page Select
+                         const empSelect = document.getElementById('main-admin-select'); 
                          
                          pendingDiv.innerHTML = '';
                          // Reset Dropdown
@@ -645,11 +676,12 @@
                                  pendingCount++;
                                  const row = document.createElement('div');
                                  row.className = 'admin-user-row';
+                                 // Using data-attributes instead of onclick for Event Delegation
                                  row.innerHTML = `
                                     <span>${uName}</span>
-                                    <div>
-                                        <button class="btn-small btn-reject" onclick="window.rejectUser('${uid}')">إلغاء</button>
-                                        <button class="btn-small btn-approve" onclick="window.approveUser('${uid}')">تفعيل</button>
+                                    <div class="action-buttons">
+                                        <button class="btn-small btn-reject" data-action="delete" data-id="${uid}">إلغاء</button>
+                                        <button class="btn-small btn-approve" data-action="activate" data-id="${uid}">تفعيل</button>
                                     </div>
                                  `;
                                  pendingDiv.appendChild(row);
@@ -659,6 +691,9 @@
                          if(pendingCount === 0) pendingDiv.innerHTML = '<small style="color:#999">لا توجد طلبات جديدة</small>';
                      };
                      window.app.loadAdminData();
+                } else {
+                    // Not Admin
+                     document.getElementById('btn-export').style.display = 'none'; // Hide export
                 }
 
                 document.getElementById('auth-overlay').style.display = 'none';
