@@ -112,8 +112,20 @@
         .day-cell.nat-holiday span { color: #880e4f !important; }
         body.dark-mode .day-cell.nat-holiday { background-color: #4a1c2d !important; color: #fce4ec !important; }
         
-        .day-cell.is-ramadan { border: 2px solid var(--ramadan); }
-        .ramadan-icon { position: absolute; bottom: 4px; left: 4px; font-size: 0.7rem; }
+        .day-cell.is-ramadan { 
+            border: 2px solid var(--ramadan) !important;
+            background-color: rgba(103, 58, 183, 0.05);
+            position: relative;
+            overflow: hidden;
+        }
+        .day-cell.is-ramadan::before {
+            content: "";
+            position: absolute;
+            top: 0; left: 0; width: 0; height: 0; 
+            border-top: 16px solid var(--ramadan);
+            border-right: 16px solid transparent;
+            z-index: 1;
+        }
 
         .legend-container { display: flex; justify-content: center; gap: 10px; flex-wrap: wrap; margin-top: 20px; padding: 10px; background: var(--bg); border-radius: var(--radius); }
         .legend-dot { width: 20px; height: 20px; border-radius: 50%; cursor: pointer; border: 2px solid var(--surface); box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
@@ -219,12 +231,12 @@
 
         <div class="stats-grid">
             <div class="stat-card" onclick="window.app.showDetails('net')"><h4>رصيد الساعات</h4><div class="val" id="st-net">0</div><div class="sub">ميزان (+/- 8س)</div></div>
-            <div class="stat-card" onclick="window.app.showDetails('sat')"><h4>رصيد السبت</h4><div class="val" id="st-sat">0</div><div class="sub">عمل (+4) / آخر (-4)</div></div>
-            <div class="stat-card" onclick="window.app.showDetails('sunday')"><h4>الأحد والأعياد</h4><div class="val" id="st-sunday">0</div><div class="sub">يوم تعويض</div></div>
+            <div class="stat-card" onclick="window.app.showDetails('sat')"><h4>رصيد السبت</h4><div class="val" id="st-sat">0</div><div class="sub">عمل (+4) / غياب (-4)</div></div>
+            <div class="stat-card" onclick="window.app.showDetails('sunday')"><h4>رصيد التعويض</h4><div class="val" id="st-sunday">0</div><div class="sub">متبقي (أحد/عيد)</div></div>
             <div class="stat-card" onclick="window.app.showDetails('leave')"><h4>رصيد العطلة</h4><div class="val" id="st-leave">0</div><div class="sub">تراكمي FIFO</div></div>
             <div class="stat-card" onclick="window.app.showDetails('week')"><h4>هذا الأسبوع</h4><div class="val" id="st-week">0</div></div>
             <div class="stat-card" onclick="window.app.showDetails('month')"><h4>هذا الشهر</h4><div class="val" id="st-month">0</div></div>
-            <div class="stat-card full-width" onclick="window.app.showDetails('year')"><h4>المجموع السنوي (ساعات العمل)</h4><div class="val" id="st-year">0</div></div>
+            <div class="stat-card full-width" onclick="window.app.showDetails('year')"><h4>المجموع السنوي (ساعات)</h4><div class="val" id="st-year">0</div></div>
         </div>
 
         <div class="calendar-box">
@@ -426,218 +438,7 @@
         </div>
     </div>
 
-    <!-- Firebase SDK -->
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getFirestore, doc, setDoc, getDoc, collection, getDocs, onSnapshot, updateDoc, deleteField, addDoc, serverTimestamp, query, orderBy, where, deleteDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-        import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, sendPasswordResetEmail, sendEmailVerification, setPersistence, browserLocalPersistence, browserSessionPersistence } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-
-        const firebaseConfig = { apiKey: "AIzaSyDhpORuBt8k6YWDLUgRrnqfC8lSS97LexQ", authDomain: "sbota-37391.firebaseapp.com", projectId: "sbota-37391", storageBucket: "sbota-37391.firebasestorage.app", messagingSenderId: "1049902061223", appId: "1:1049902061223:web:68e7c10c349025ca7ead82", measurementId: "G-3B4ESSJWJ9" };
-        const app = initializeApp(firebaseConfig);
-        const db = getFirestore(app);
-        const auth = getAuth(app);
-
-        // Exports
-        window.showLoader = (s) => document.getElementById('loader').style.display = s?'flex':'none';
-        window.showError = (id, msg) => { const el=document.getElementById(id); el.textContent=msg; el.style.display='block'; };
-        window.switchView = (id) => { document.querySelectorAll('.view-section').forEach(e=>e.classList.remove('active')); document.getElementById(id).classList.add('active'); document.querySelectorAll('.error-msg,.success-msg').forEach(e=>e.style.display='none'); };
-        window.togglePass = (id) => { const el=document.getElementById(id); el.type = el.type==='password'?'text':'password'; };
-
-        window.handleLogin = async () => {
-            const e = document.getElementById('login-email').value, p = document.getElementById('login-pass').value;
-            if(!e || !p) return window.showError('login-error', 'يرجى ملء البيانات');
-            window.showLoader(true);
-            try { 
-                await setPersistence(auth, document.getElementById('remember-me').checked ? browserLocalPersistence : browserSessionPersistence); 
-                const cred = await signInWithEmailAndPassword(auth, e, p); 
-                
-                const uDoc = await getDoc(doc(db, 'users', cred.user.uid));
-                if(uDoc.exists()) {
-                    const userData = uDoc.data();
-                    if(userData.status === 'pending') {
-                        await signOut(auth);
-                        window.showError('login-error', 'الحساب قيد المراجعة. يرجى انتظار تفعيل الأدمن.');
-                        window.showLoader(false);
-                        return;
-                    }
-                    if(userData.status === 'rejected') {
-                        await signOut(auth);
-                        window.showError('login-error', 'تم رفض طلبك. يرجى التواصل مع الإدارة.');
-                        window.showLoader(false);
-                        return;
-                    }
-                }
-
-                if(!cred.user.emailVerified) { 
-                    await signOut(auth); window.showError('login-error', 'يرجى تفعيل البريد الإلكتروني أولاً'); window.showLoader(false); 
-                } 
-            } catch(error) { 
-                window.showLoader(false); window.showError('login-error', "بيانات خاطئة"); 
-            }
-        };
-
-        window.handleSignup = async () => {
-            const e = document.getElementById('reg-email').value;
-            const p = document.getElementById('reg-pass').value;
-            const c = document.getElementById('reg-confirm').value;
-
-            if(!e || !p || !c) return window.showError('reg-error', 'يرجى ملء جميع الحقول');
-            if(p !== c) return window.showError('reg-error', 'كلمات المرور غير متطابقة');
-            if(p.length < 6) return window.showError('reg-error', 'كلمة المرور يجب أن تكون 6 أحرف على الأقل');
-
-            window.showLoader(true);
-            try { 
-                // 1. إنشاء الحساب أولاً
-                const cred = await createUserWithEmailAndPassword(auth, e, p); 
-                
-                // 2. التحقق من المستخدمين الموجودين
-                const snap = await getDocs(collection(db, "users")); 
-                const role = snap.empty ? 'admin' : 'user'; 
-                const status = (role === 'admin') ? 'active' : 'pending';
-
-                // 3. إرسال رابط التفعيل
-                await sendEmailVerification(cred.user); 
-                
-                // 4. حفظ البيانات
-                await setDoc(doc(db, "users", cred.user.uid), { 
-                    email: e, 
-                    role: role, 
-                    status: status 
-                }); 
-                
-                // 5. إنشاء الإعدادات
-                await setDoc(doc(db, "settings", cred.user.uid), { 
-                    joinDate: '', 
-                    fullName: '', 
-                    adjustments: [], 
-                    dismissedMsgs: [], 
-                    deletedMsgs: [], 
-                    nfc: {enabled:false, serial:''}, 
-                    themeColor: '#4361ee' 
-                }); 
-                
-                // 6. إعدادات الأدمن
-                if(role === 'admin') {
-                    await setDoc(doc(db, "config", "general"), { 
-                        presets: [
-                            {label:'صباح', start:'08:00', end:'16:00'},
-                            {label:'نصف يوم', start:'08:00', end:'12:00'}
-                        ],
-                        ramadanPresets: [
-                            {label:'صباح رمضان', start:'09:00', end:'15:00'}
-                        ],
-                        ramadanStart: '', 
-                        ramadanDays: 0,
-                        appName: 'المدير الذكي'
-                    }); 
-                }
-                
-                // 7. تسجيل الخروج
-                await signOut(auth); 
-                
-                const successMsg = (status === 'pending') 
-                    ? "تم إنشاء الحساب بنجاح. يرجى انتظار تفعيل الأدمن لاشتراكك."
-                    : "تم إنشاء حساب الأدمن! يرجى تفعيل البريد الإلكتروني ثم الدخول.";
-                
-                document.getElementById('reg-success').textContent = successMsg;
-                document.getElementById('reg-success').style.display = 'block'; 
-                
-                document.getElementById('reg-email').value = '';
-                document.getElementById('reg-pass').value = '';
-                document.getElementById('reg-confirm').value = '';
-
-            } catch(err) { 
-                console.error("Signup Error:", err);
-                let msg = 'حدث خطأ في التسجيل';
-                if(err.code === 'auth/email-already-in-use') msg = 'البريد الإلكتروني مسجل مسبقاً';
-                if(err.code === 'auth/invalid-email') msg = 'صيغة البريد الإلكتروني خاطئة';
-                if(err.code === 'permission-denied') msg = 'لا تملك صلاحية الوصول لقاعدة البيانات (تأكد من Rules)';
-                
-                window.showError('reg-error', msg); 
-            } finally { 
-                window.showLoader(false); 
-            }
-        };
-
-        window.handleReset = async () => { const e = document.getElementById('reset-email').value; if(!e) return; try { await sendPasswordResetEmail(auth, e); document.getElementById('reset-msg').textContent = "تم الإرسال"; document.getElementById('reset-msg').style.display = 'block'; } catch(err) {} };
-        window.handleLogout = async () => { await signOut(auth); window.location.reload(); };
-
-        window.saveData = async (type, data) => { const u = auth.currentUser; if(!u) return; try { if(type === 'personal_settings') await setDoc(doc(db, 'settings', u.uid), data, {merge:true}); else if(type === 'global_config') await setDoc(doc(db, 'config', 'general'), data, {merge:true}); else if(type === 'events') await setDoc(doc(db, 'attendance', u.uid), {events: data}, {merge:true}); } catch(e) {} };
-        window.fbDeleteDay = async (dateKey) => { const u = auth.currentUser; if(!u) return; try { await updateDoc(doc(db, 'attendance', u.uid), { [`events.${dateKey}`]: deleteField() }); } catch(e) {} };
-        window.sendAdminMessage = async (text) => { const u = auth.currentUser; if(!u) return; try { await addDoc(collection(db, "notifications"), { content: text, createdAt: serverTimestamp(), sender: u.uid }); alert("تم"); } catch(e) {} };
-
-        window.approveUser = async (uid) => { try { await updateDoc(doc(db, 'users', uid), { status: 'active' }); alert("تم تفعيل المستخدم ✅"); window.app.openSettings(); } catch(e) { alert("خطأ"); } };
-        window.rejectUser = async (uid) => { if(confirm("هل أنت متأكد من رفض هذا المستخدم؟ سيتم حظره.")) { try { await updateDoc(doc(db, 'users', uid), { status: 'rejected' }); alert("تم رفض المستخدم ❌"); window.app.openSettings(); } catch(e) { alert("خطأ"); } } };
-
-        window.fetchPendingUsers = async () => {
-            const list = document.getElementById('pending-users-list');
-            if(!list) return;
-            list.innerHTML = '<div style="text-align:center;">جاري التحميل...</div>';
-            try {
-                const q = query(collection(db, "users"), where("status", "==", "pending"));
-                const querySnapshot = await getDocs(q);
-                list.innerHTML = '';
-                if(querySnapshot.empty) {
-                    list.innerHTML = '<div style="text-align:center; color:#999; font-size:0.8rem;">لا توجد طلبات جديدة</div>';
-                    return;
-                }
-                querySnapshot.forEach((doc) => {
-                    const u = doc.data();
-                    list.innerHTML += `<div style="display:flex; justify-content:space-between; align-items:center; background:white; padding:8px; border-radius:8px; margin-bottom:5px; border:1px solid #eee;"><span style="font-size:0.85rem; font-weight:bold;">${u.email}</span><div style="display:flex; gap:5px;"><button onclick="window.approveUser('${doc.id}')" style="background:#e8f5e9; color:#2e7d32; border:none; padding:4px 8px; border-radius:6px; cursor:pointer;">✅</button><button onclick="window.rejectUser('${doc.id}')" style="background:#ffebee; color:#c62828; border:none; padding:4px 8px; border-radius:6px; cursor:pointer;">❌</button></div></div>`;
-                });
-            } catch(e) { list.innerHTML = 'خطأ في التحميل'; }
-        };
-
-        onAuthStateChanged(auth, async (user) => {
-            if(user) {
-                const uDoc = await getDoc(doc(db, 'users', user.uid));
-                if(uDoc.exists()) {
-                    const data = uDoc.data();
-                    if(data.status !== 'active') {
-                        if(data.status === 'pending' || data.status === 'rejected') {
-                            await signOut(auth);
-                            document.getElementById('auth-overlay').style.display = 'flex';
-                            return;
-                        }
-                    }
-                    window.appData.role = data.role;
-                    if(window.appData.role === 'admin') {
-                        document.getElementById('admin-section').style.display = 'block';
-                    }
-                }
-
-                if(user.emailVerified) {
-                    document.getElementById('auth-overlay').style.display = 'none'; document.getElementById('app-container').style.display = 'block';
-                    document.getElementById('u-name').textContent = user.email.split('@')[0];
-                    window.app.initTheme(); window.showLoader(true);
-                    
-                    onSnapshot(doc(db, "attendance", user.uid), (doc) => { if(doc.exists()) window.appData.events = doc.data().events || {}; window.app.renderCalendar(); window.app.checkAutoFill(); });
-                    onSnapshot(doc(db, "settings", user.uid), (doc) => { 
-                        if(doc.exists()) window.appData.personal = doc.data() || {};
-                        if(!window.appData.personal.nfc) window.appData.personal.nfc = {enabled: false, serial: ''};
-                        if(!window.appData.personal.dismissedMsgs) window.appData.personal.dismissedMsgs = [];
-                        if(!window.appData.personal.deletedMsgs) window.appData.personal.deletedMsgs = [];
-                        
-                        document.getElementById('u-name').textContent = window.appData.personal.fullName || user.email.split('@')[0];
-                        document.getElementById('btn-nfc-scan').style.display = window.appData.personal.nfc.enabled ? 'flex' : 'none';
-                        
-                        if(window.appData.personal.themeColor) {
-                            window.app.applyColor(window.appData.personal.themeColor);
-                        }
-
-                        window.app.calcStats(); window.app.checkMessages();
-                    });
-                    onSnapshot(doc(db, "config", "general"), (doc) => { if(doc.exists()) { window.appData.global = doc.data() || {}; if(window.appData.global.appName) { document.title = window.appData.global.appName; document.getElementById('header-title').textContent = window.appData.global.appName; } } });
-                    const q = query(collection(db, "notifications"), orderBy("createdAt", "desc"));
-                    onSnapshot(q, (snapshot) => { let msgs = []; snapshot.forEach((doc) => msgs.push({ id: doc.id, ...doc.data() })); window.appData.messages = msgs; window.app.checkMessages(); });
-                    window.showLoader(false);
-                } else { if(user) await signOut(auth); document.getElementById('auth-overlay').style.display = 'flex'; document.getElementById('app-container').style.display = 'none'; window.showLoader(false); }
-            } else {
-                document.getElementById('auth-overlay').style.display = 'flex'; document.getElementById('app-container').style.display = 'none'; window.showLoader(false);
-            }
-        });
-    </script>
-
+    <!-- Main Logic Script -->
     <script>
         const nationalHolidays = { "1-11":"وثيقة الاستقلال","1-14":"رأس السنة الأمازيغية","5-1":"عيد الشغل","7-30":"عيد العرش","8-14":"وادي الذهب","8-20":"ثورة الملك والشعب","8-21":"عيد الشباب","10-31":"عيد الوحدة","11-6":"المسيرة الخضراء","11-18":"عيد الاستقلال","12-9":"عيد الوساطة" };
         const dayNames = ["إثنين", "ثلاثاء", "أربعاء", "خميس", "جمعة", "سبت", "أحد"];
@@ -689,6 +490,9 @@
                 
                 const picker = document.getElementById('s-theme-color');
                 if(picker) picker.value = color;
+                
+                const overlay = document.getElementById('auth-overlay');
+                if(overlay) overlay.style.background = `linear-gradient(135deg, ${color}, #4cc9f0)`;
             },
 
             isRamadan: (dateKey) => {
@@ -855,11 +659,11 @@
                     const key = `${y}-${String(m+1).padStart(2,'0')}-${String(i).padStart(2,'0')}`;
                     const evt = window.appData.events[key], isNat = nationalHolidays[`${m+1}-${i}`];
                     const isRam = window.app.isRamadan(key);
-                    let cls = '', natCls = isNat ? 'nat-holiday' : '', ramCls = isRam ? 'is-ramadan' : '', noteInd = (evt && evt.note) ? '<div class="note-dot"></div>' : '', ramIcon = isRam ? '<span class="ramadan-icon">🌙</span>' : '';
+                    let cls = '', natCls = isNat ? 'nat-holiday' : '', ramCls = isRam ? 'is-ramadan' : '', noteInd = (evt && evt.note) ? '<div class="note-dot"></div>' : '';
                     if(evt) cls = `st-${evt.type}`;
                     const dObj = new Date(y, m, i), now = new Date(); now.setHours(0,0,0,0);
                     const classes = `day-cell ${dObj.getTime()===now.getTime()?'today':''} ${dObj.getDay()===0||dObj.getDay()===6?'weekend':''} ${natCls} ${ramCls} ${cls}`;
-                    grid.innerHTML += `<div class="${classes}" onclick="window.app.openDay('${key}')"><span>${i}</span>${noteInd}${ramIcon}</div>`;
+                    grid.innerHTML += `<div class="${classes}" onclick="window.app.openDay('${key}')"><span>${i}</span>${noteInd}</div>`;
                 }
                 window.app.calcStats();
             },
@@ -976,55 +780,88 @@
             },
             
             calcStats: () => {
-                let net=0, sat=0, tYearWorkHours=0, tSickDays=0, tWeek=0, tMonth=0;
-                let yr=currentDate.getFullYear(), mth=currentDate.getMonth(), today=new Date();
-                const weekStart=new Date(today); weekStart.setDate(today.getDate()-today.getDay()); weekStart.setHours(0,0,0,0);
-                const weekEnd=new Date(weekStart); weekEnd.setDate(weekStart.getDate()+6); weekEnd.setHours(23,59,59,999);
+                let net = 0;
+                let satBalance = 0; // رصيد السبت (التعديل الجديد: +/- فقط للعمل/الغياب)
+                
+                // متغيرات حساب التعويض (الأحد والعيد) - التعديل الجديد: تراكمي
+                let recupEarned = 0; // عدد الأيام التي تستوجب التعويض
+                let recupTaken = 0;  // عدد أيام التعويض المستهلكة
+                
+                let tYearWorkHours = 0;
+                let tWeek = 0;
+                let tMonth = 0;
                 
                 const breakdown = window.app.getLeaveBreakdown();
                 const leave = breakdown.pools.reduce((sum, pool) => sum + pool.remaining, 0);
-                let pending = 0;
+
+                let yr = currentDate.getFullYear();
+                let mth = currentDate.getMonth();
+                
+                // تواريخ لحساب الأسبوع الحالي
+                const today = new Date();
+                const weekStart = new Date(today); weekStart.setDate(today.getDate() - today.getDay()); weekStart.setHours(0,0,0,0);
+                const weekEnd = new Date(weekStart); weekEnd.setDate(weekStart.getDate() + 6); weekEnd.setHours(23,59,59,999);
 
                 Object.entries(window.appData.events).forEach(([k, evt]) => {
                      const d = new Date(k);
-                     if(d.getFullYear()===yr) {
-                         const isRam = window.app.isRamadan(k);
-                         
-                         if(evt.type==='work'||evt.type==='paid'||(evt.type==='eid'&&evt.eidStatus==='work')) {
-                             let effectiveHours = (evt.type === 'paid') ? 8 : (isRam ? (evt.hours + 1) : evt.hours);
-                             
-                             tYearWorkHours += effectiveHours;
-                             net += (effectiveHours - 8);
+                     
+                     // 1. حسابات التعويض (Recuperation) - نحسب للكل
+                     // إذا عملت يوم أحد
+                     if(d.getDay() === 0 && evt.type === 'work') { recupEarned++; }
+                     // إذا عملت في عيد أو عطلة وطنية
+                     if(evt.type === 'eid' && evt.eidStatus === 'work') { recupEarned++; }
+                     // إذا أخذت يوم تعويض
+                     if(evt.type === 'recup') { recupTaken++; }
 
-                             if(d.getMonth()===mth) tMonth += effectiveHours;
-                             if(d>=weekStart && d<=weekEnd) tWeek += effectiveHours;
-                         } else if(evt.type==='absent') {
+                     // 2. حسابات السنة الحالية فقط (للميزان والسبت)
+                     if(d.getFullYear() === yr) {
+                         const isRam = window.app.isRamadan(k);
+                         let effectiveHours = 0;
+
+                         // تحديد الساعات الفعلية (للميزان)
+                         if(evt.type === 'work' || evt.type === 'paid' || (evt.type === 'eid' && evt.eidStatus === 'work')) {
+                             effectiveHours = (evt.type === 'paid') ? 8 : (isRam ? (evt.hours + 1) : evt.hours);
+                             net += (effectiveHours - 8); // الميزان العادي
+                         } else if (evt.type === 'holiday') {
+                             effectiveHours = 8; // العطلة تحسب 8 ساعات في المجموع السنوي ولكن لا تؤثر على الميزان
+                         } else if(evt.type === 'absent') {
                              net -= 8;
                          }
 
-                         if(evt.type==='sick') { tSickDays++; }
+                         // تراكمي الساعات والمجموع
+                         if(evt.type !== 'absent' && evt.type !== 'sick') tYearWorkHours += effectiveHours;
+                         if(d.getMonth() === mth) tMonth += effectiveHours;
+                         if(d >= weekStart && d <= weekEnd) tWeek += effectiveHours;
+
+                         // --- 3. منطق السبت الجديد ---
                          if(d.getDay() === 6) {
-                             if(evt.type==='work' || evt.type==='paid' || (evt.type==='eid' && evt.eidStatus==='work')) sat+=4;
-                             else sat-=4;
+                             if(evt.type === 'work' || (evt.type === 'eid' && evt.eidStatus === 'work')) {
+                                 // عملت السبت: لك +4
+                                 satBalance += 4;
+                             } else if (evt.type === 'absent') {
+                                 // غبت السبت (بدون مبرر): عليك -4
+                                 satBalance -= 4;
+                             }
+                             // الحالات الأخرى (عطلة، مرض، يوم مدفوع) -> 0
                          }
                      }
                 });
                 
-                // Sunday Logic
-                const used = Object.values(window.appData.events).filter(e=>e.type==='recup').map(e=>e.recupTarget);
-                Object.entries(window.appData.events).forEach(([k,e]) => { 
-                    const d=new Date(k);
-                    const isNat = nationalHolidays[`${d.getMonth()+1}-${d.getDate()}`];
-                    if(d.getDay()===0 && !isNat && e.type==='work') { if(!used.includes(k)) pending++; }
-                });
+                // النتيجة النهائية لرصيد الأحد والعيد
+                const pendingRecup = recupEarned - recupTaken;
 
+                // تحديث الواجهة
                 document.getElementById('st-net').innerHTML = `<span class="${net>=0?'txt-green':'txt-red'}">${net.toFixed(1)}</span>`;
-                document.getElementById('st-sat').innerHTML = `<span class="${sat>=0?'txt-green':'txt-red'}">${sat}</span>`;
+                document.getElementById('st-sat').innerHTML = `<span class="${satBalance>=0?'txt-green':'txt-red'}">${satBalance}</span>`;
+                
+                document.getElementById('st-sunday').textContent = pendingRecup; 
+                document.getElementById('st-sunday').className = pendingRecup > 0 ? 'val txt-green' : 'val';
+
                 document.getElementById('st-leave').textContent = leave.toFixed(1); 
-                document.getElementById('st-sunday').textContent = pending;
                 document.getElementById('st-week').textContent = tWeek.toFixed(1); 
                 document.getElementById('st-month').textContent = tMonth.toFixed(1); 
                 document.getElementById('st-year').innerHTML = `<div style="font-size:1.8rem; font-weight:bold; color:var(--primary)">${tYearWorkHours.toFixed(0)} <span style="font-size:1rem; color:var(--text-light)">ساعة</span></div>`;
+                
                 window.app.renderChart();
             },
             
@@ -1048,15 +885,75 @@
                     document.getElementById('searchModal').style.display = 'flex'; return;
                 }
 
-                if (cat === 'year') {
+                // تفاصيل الأحد والعيد (معدلة)
+                else if (cat === 'sunday') {
+                    document.getElementById('search-title').textContent = 'رصيد التعويض (الأحد/الأعياد)';
+                    
+                    // 1. الأيام التي تستوجب التعويض
+                    list.innerHTML += `<div class="details-header">أيام عملتها (تستحق التعويض):</div>`;
+                    let earnedCount = 0;
+                    for(const [k, evt] of Object.entries(window.appData.events)) {
+                        const d = new Date(k);
+                        // يوم أحد عمل أو عيد عمل
+                        if( (d.getDay() === 0 && evt.type === 'work') || (evt.type === 'eid' && evt.eidStatus === 'work') ) {
+                            earnedCount++;
+                            let label = d.getDay() === 0 ? "عمل يوم أحد" : "عمل يوم عيد";
+                            tempList.push({date:k, note:label, val:'+1', type:'pos'});
+                        }
+                    }
+                    if(tempList.length === 0) list.innerHTML += '<div style="text-align:center;color:#999;font-size:0.8rem;">لا يوجد</div>';
+                    tempList.sort((a,b) => new Date(b.date) - new Date(a.date));
+                    tempList.forEach(item => list.innerHTML += `<div class="detail-item ${item.type}" onclick="window.app.openDay('${item.date}')"><span>${item.date} <small>(${item.note})</small></span><span class="d-val ${item.type}">${item.val}</span></div>`);
+
+                    // 2. أيام التعويض المستهلكة
+                    list.innerHTML += `<div class="details-header">أيام استرجعتها (Recuperation):</div>`;
+                    let takenList = [];
+                    for(const [k, evt] of Object.entries(window.appData.events)) {
+                        if(evt.type === 'recup') {
+                            takenList.push({date:k, note: evt.recupTarget ? `تعويض عن ${evt.recupTarget}` : 'استرجاع', val:'-1', type:'neg'});
+                        }
+                    }
+                    if(takenList.length === 0) list.innerHTML += '<div style="text-align:center;color:#999;font-size:0.8rem;">لا يوجد</div>';
+                    takenList.sort((a,b) => new Date(b.date) - new Date(a.date));
+                    takenList.forEach(item => list.innerHTML += `<div class="detail-item ${item.type}" onclick="window.app.openDay('${item.date}')"><span>${item.date} <small>(${item.note})</small></span><span class="d-val ${item.type}">${item.val}</span></div>`);
+                    
+                    document.getElementById('searchModal').style.display = 'flex'; return;
+                }
+
+                // تفاصيل السبت (معدلة)
+                else if (cat === 'sat') {
+                    document.getElementById('search-title').textContent = 'تفاصيل رصيد السبت';
+                    for(const [k, evt] of Object.entries(window.appData.events)) {
+                        const d = new Date(k);
+                        if(d.getFullYear() === yr && d.getDay() === 6) {
+                            let note = '', val = 0, type = 'neutral';
+                            
+                            if(evt.type === 'work' || (evt.type === 'eid' && evt.eidStatus === 'work')) {
+                                note = 'عمل'; val = 4; type = 'pos';
+                            } else if (evt.type === 'absent') {
+                                note = 'غياب'; val = -4; type = 'neg';
+                            } else {
+                                // الحالات الأخرى لا تؤثر
+                                note = {holiday:'عطلة', sick:'مرض', paid:'مدفوع'}[evt.type] || evt.type;
+                                val = 0; type = 'neutral';
+                            }
+                            
+                            if(val !== 0) { 
+                                tempList.push({date:k, note:note, val:(val>0?'+':'')+val, type});
+                            }
+                        }
+                    }
+                } 
+                
+                else if (cat === 'year') {
                     let summary = { work:{c:0,h:0,l:'عمل',i:'✅'}, holiday:{c:0,h:0,l:'عطلة',i:'🏖️'}, sick:{c:0,h:0,l:'مرض',i:'💊'}, absent:{c:0,h:0,l:'غياب',i:'❌'}, eid:{c:0,h:0,l:'أعياد',i:'🎉'}, recup:{c:0,h:0,l:'استرجاع',i:'🔄'}, paid:{c:0,h:0,l:'يوم مدفوع',i:'💰'} };
                     for(const [k, e] of Object.entries(window.appData.events)) {
                         if(new Date(k).getFullYear() === yr) {
                             if(summary[e.type]) {
                                 summary[e.type].c++;
-                                if(e.type === 'work' || e.type === 'paid' || (e.type === 'eid' && e.eidStatus === 'work')) {
+                                if(e.type === 'work' || e.type === 'paid' || e.type === 'holiday' || (e.type === 'eid' && e.eidStatus === 'work')) {
                                     const isRam = window.app.isRamadan(k);
-                                    let effectiveHours = (e.type === 'paid') ? 8 : (isRam ? (e.hours + 1) : e.hours);
+                                    let effectiveHours = (e.type === 'paid' || e.type === 'holiday') ? 8 : (isRam ? (e.hours + 1) : e.hours);
                                     summary[e.type].h += effectiveHours;
                                 }
                             }
@@ -1065,38 +962,31 @@
                     list.innerHTML = `<div class="details-header">ملخص سنة ${yr}</div>`;
                     for(const [key, data] of Object.entries(summary)) {
                         if(data.c > 0) {
-                            let valStr = (key === 'work' || key === 'eid' || key === 'paid') ? `${data.h.toFixed(1)} ساعة` : `${data.c} يوم`;
+                            let isHoursType = (key === 'work' || key === 'eid' || key === 'paid' || key === 'holiday');
+                            let valStr = isHoursType ? `${data.h.toFixed(1)} ساعة` : `${data.c} يوم`;
                             list.innerHTML += `<div class="detail-item neutral" onclick="window.app.showDetails('year_sub_${key}')"><span>${data.i} ${data.l}</span><span class="d-val">${valStr}</span></div>`;
                         }
                     }
                     document.getElementById('searchModal').style.display = 'flex'; return;
                 }
-
-                if (cat.startsWith('year_sub_')) {
+                
+                else if (cat.startsWith('year_sub_')) {
                     const subType = cat.replace('year_sub_', '');
                     document.getElementById('search-title').textContent = 'تفاصيل: ' + subType;
                     list.innerHTML = `<div class="details-header" style="cursor:pointer; color:var(--text-light)" onclick="window.app.showDetails('year')">⬅️ عودة للملخص</div>`;
                     for(const [k, evt] of Object.entries(window.appData.events)) {
                         if(new Date(k).getFullYear() === yr && evt.type === subType) {
                             let val = 'يوم';
-                            if(evt.type==='work' || evt.type==='paid' || (evt.type==='eid' && evt.eidStatus==='work')) {
+                            if(evt.type==='work' || evt.type==='paid' || evt.type==='holiday' || (evt.type==='eid' && evt.eidStatus==='work')) {
                                 const isRam = window.app.isRamadan(k);
-                                let effectiveHours = (evt.type === 'paid') ? 8 : (isRam ? (evt.hours + 1) : evt.hours);
+                                let effectiveHours = (evt.type === 'paid' || evt.type === 'holiday') ? 8 : (isRam ? (evt.hours + 1) : evt.hours);
                                 val = effectiveHours.toFixed(1) + 'س';
                             }
                             tempList.push({date:k, note:evt.note||'', val:val, type: evt.type==='absent'?'neg':'pos'});
                         }
                     }
-                } else if (cat === 'sat') {
-                    for(const [k, evt] of Object.entries(window.appData.events)) {
-                        const d = new Date(k);
-                        if(d.getFullYear() === yr && d.getDay() === 6) {
-                            let st = 'غياب', val = -4, type = 'neg';
-                            if(evt && (evt.type==='work' || evt.type==='paid' || (evt.type==='eid' && evt.eidStatus==='work'))) { st='عمل'; val=4; type='pos'; }
-                            tempList.push({date:k, note:st, val:(val>0?'+':'')+val, type});
-                        }
-                    }
-                } else if (cat === 'net') {
+                } 
+                else if (cat === 'net') {
                     for(const [k, evt] of Object.entries(window.appData.events)) {
                         if(new Date(k).getFullYear() !== yr) continue;
                         let diff = 0, note = '';
@@ -1108,7 +998,8 @@
                         else if(evt.type==='absent') { diff = -8; note='غياب'; }
                         if(diff !== 0) tempList.push({date:k, note, val:(diff>0?'+':'')+diff.toFixed(1), type:diff>=0?'pos':'neg'});
                     }
-                } else if (['week', 'month'].includes(cat)) {
+                } 
+                else if (['week', 'month'].includes(cat)) {
                      const today = new Date();
                      const weekStart=new Date(today); weekStart.setDate(today.getDate()-today.getDay()); weekStart.setHours(0,0,0,0);
                      const weekEnd=new Date(weekStart); weekEnd.setDate(weekStart.getDate()+6); weekEnd.setHours(23,59,59,999);
@@ -1130,7 +1021,7 @@
                 }
 
                 tempList.sort((a,b) => new Date(b.date) - new Date(a.date));
-                if(tempList.length === 0 && !cat.startsWith('year_sub')) list.innerHTML += '<div style="text-align:center; padding:10px;">لا توجد بيانات</div>';
+                if(tempList.length === 0 && !cat.startsWith('year_sub') && cat !== 'sunday') list.innerHTML += '<div style="text-align:center; padding:10px;">لا توجد بيانات</div>';
                 tempList.forEach(item => {
                     list.innerHTML += `<div class="detail-item ${item.type}" onclick="window.app.openDay('${item.date}')"><span>${item.date} <small>(${item.note})</small></span><span class="d-val ${item.type}">${item.val}</span></div>`;
                 });
@@ -1289,6 +1180,216 @@
             },
             showLegendToast: (msg) => { const t = document.getElementById('legend-toast'); t.textContent = msg; t.classList.add('show-toast'); setTimeout(() => t.classList.remove('show-toast'), 3000); }
         };
+    </script>
+
+    <!-- Firebase SDK -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getFirestore, doc, setDoc, getDoc, collection, getDocs, onSnapshot, updateDoc, deleteField, addDoc, serverTimestamp, query, orderBy, where, deleteDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, sendPasswordResetEmail, sendEmailVerification, setPersistence, browserLocalPersistence, browserSessionPersistence } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+
+        // Your Firebase Config - Ensure these are correct
+        const firebaseConfig = { apiKey: "AIzaSyDhpORuBt8k6YWDLUgRrnqfC8lSS97LexQ", authDomain: "sbota-37391.firebaseapp.com", projectId: "sbota-37391", storageBucket: "sbota-37391.firebasestorage.app", messagingSenderId: "1049902061223", appId: "1:1049902061223:web:68e7c10c349025ca7ead82", measurementId: "G-3B4ESSJWJ9" };
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const auth = getAuth(app);
+
+        // Exports
+        window.showLoader = (s) => document.getElementById('loader').style.display = s?'flex':'none';
+        window.showError = (id, msg) => { const el=document.getElementById(id); el.textContent=msg; el.style.display='block'; };
+        window.switchView = (id) => { document.querySelectorAll('.view-section').forEach(e=>e.classList.remove('active')); document.getElementById(id).classList.add('active'); document.querySelectorAll('.error-msg,.success-msg').forEach(e=>e.style.display='none'); };
+        window.togglePass = (id) => { const el=document.getElementById(id); el.type = el.type==='password'?'text':'password'; };
+
+        window.handleLogin = async () => {
+            const e = document.getElementById('login-email').value, p = document.getElementById('login-pass').value;
+            if(!e || !p) return window.showError('login-error', 'يرجى ملء البيانات');
+            window.showLoader(true);
+            try { 
+                await setPersistence(auth, document.getElementById('remember-me').checked ? browserLocalPersistence : browserSessionPersistence); 
+                const cred = await signInWithEmailAndPassword(auth, e, p); 
+                
+                const uDoc = await getDoc(doc(db, 'users', cred.user.uid));
+                if(uDoc.exists()) {
+                    const userData = uDoc.data();
+                    if(userData.status === 'pending') {
+                        await signOut(auth);
+                        window.showError('login-error', 'الحساب قيد المراجعة. يرجى انتظار تفعيل الأدمن.');
+                        window.showLoader(false);
+                        return;
+                    }
+                    if(userData.status === 'rejected') {
+                        await signOut(auth);
+                        window.showError('login-error', 'تم رفض طلبك. يرجى التواصل مع الإدارة.');
+                        window.showLoader(false);
+                        return;
+                    }
+                }
+
+                if(!cred.user.emailVerified) { 
+                    await signOut(auth); window.showError('login-error', 'يرجى تفعيل البريد الإلكتروني أولاً'); window.showLoader(false); 
+                } 
+            } catch(error) { 
+                window.showLoader(false); window.showError('login-error', "بيانات خاطئة"); 
+            }
+        };
+
+        window.handleSignup = async () => {
+            const e = document.getElementById('reg-email').value, p = document.getElementById('reg-pass').value, c = document.getElementById('reg-confirm').value;
+            if(!e || !p || !c || p!==c || p.length<6) return window.showError('reg-error', 'يرجى ملء جميع الحقول');
+            if(p !== c) return window.showError('reg-error', 'كلمات المرور غير متطابقة');
+            if(p.length < 6) return window.showError('reg-error', 'كلمة المرور يجب أن تكون 6 أحرف على الأقل');
+
+            window.showLoader(true);
+            try { 
+                // 1. إنشاء الحساب أولاً
+                const cred = await createUserWithEmailAndPassword(auth, e, p); 
+                
+                // 2. التحقق من المستخدمين الموجودين
+                const snap = await getDocs(collection(db, "users")); 
+                const role = snap.empty ? 'admin' : 'user'; 
+                const status = (role === 'admin') ? 'active' : 'pending';
+
+                // 3. إرسال رابط التفعيل
+                await sendEmailVerification(cred.user); 
+                
+                // 4. حفظ البيانات
+                await setDoc(doc(db, "users", cred.user.uid), { 
+                    email: e, 
+                    role: role, 
+                    status: status 
+                }); 
+                
+                // 5. إنشاء الإعدادات
+                await setDoc(doc(db, "settings", cred.user.uid), { 
+                    joinDate: '', 
+                    fullName: '', 
+                    adjustments: [], 
+                    dismissedMsgs: [], 
+                    deletedMsgs: [], 
+                    nfc: {enabled:false, serial:''}, 
+                    themeColor: '#4361ee' 
+                }); 
+                
+                // 6. إعدادات الأدمن
+                if(role === 'admin') {
+                    await setDoc(doc(db, "config", "general"), { 
+                        presets: [
+                            {label:'صباح', start:'08:00', end:'16:00'},
+                            {label:'نصف يوم', start:'08:00', end:'12:00'}
+                        ],
+                        ramadanPresets: [
+                            {label:'صباح رمضان', start:'09:00', end:'15:00'}
+                        ],
+                        ramadanStart: '', 
+                        ramadanDays: 0,
+                        appName: 'المدير الذكي'
+                    }); 
+                }
+                
+                // 7. تسجيل الخروج
+                await signOut(auth); 
+                
+                const successMsg = (status === 'pending') 
+                    ? "تم إنشاء الحساب بنجاح. يرجى انتظار تفعيل الأدمن لاشتراكك."
+                    : "تم إنشاء حساب الأدمن! يرجى تفعيل البريد الإلكتروني ثم الدخول.";
+                
+                document.getElementById('reg-success').textContent = successMsg;
+                document.getElementById('reg-success').style.display = 'block'; 
+                
+                document.getElementById('reg-email').value = '';
+                document.getElementById('reg-pass').value = '';
+                document.getElementById('reg-confirm').value = '';
+
+            } catch(err) { 
+                console.error("Signup Error:", err);
+                let msg = 'حدث خطأ في التسجيل';
+                if(err.code === 'auth/email-already-in-use') msg = 'البريد الإلكتروني مسجل مسبقاً';
+                if(err.code === 'auth/invalid-email') msg = 'صيغة البريد الإلكتروني خاطئة';
+                if(err.code === 'permission-denied') msg = 'لا تملك صلاحية الوصول لقاعدة البيانات (تأكد من Rules)';
+                
+                window.showError('reg-error', msg); 
+            } finally { 
+                window.showLoader(false); 
+            }
+        };
+
+        window.handleReset = async () => { const e = document.getElementById('reset-email').value; if(!e) return; try { await sendPasswordResetEmail(auth, e); document.getElementById('reset-msg').textContent = "تم الإرسال"; document.getElementById('reset-msg').style.display = 'block'; } catch(err) {} };
+        window.handleLogout = async () => { await signOut(auth); window.location.reload(); };
+
+        window.saveData = async (type, data) => { const u = auth.currentUser; if(!u) return; try { if(type === 'personal_settings') await setDoc(doc(db, 'settings', u.uid), data, {merge:true}); else if(type === 'global_config') await setDoc(doc(db, 'config', 'general'), data, {merge:true}); else if(type === 'events') await setDoc(doc(db, 'attendance', u.uid), {events: data}, {merge:true}); } catch(e) {} };
+        window.fbDeleteDay = async (dateKey) => { const u = auth.currentUser; if(!u) return; try { await updateDoc(doc(db, 'attendance', u.uid), { [`events.${dateKey}`]: deleteField() }); } catch(e) {} };
+        window.sendAdminMessage = async (text) => { const u = auth.currentUser; if(!u) return; try { await addDoc(collection(db, "notifications"), { content: text, createdAt: serverTimestamp(), sender: u.uid }); alert("تم"); } catch(e) {} };
+
+        window.approveUser = async (uid) => { try { await updateDoc(doc(db, 'users', uid), { status: 'active' }); alert("تم تفعيل المستخدم ✅"); window.app.openSettings(); } catch(e) { alert("خطأ"); } };
+        window.rejectUser = async (uid) => { if(confirm("هل أنت متأكد من رفض هذا المستخدم؟ سيتم حظره.")) { try { await updateDoc(doc(db, 'users', uid), { status: 'rejected' }); alert("تم رفض المستخدم ❌"); window.app.openSettings(); } catch(e) { alert("خطأ"); } } };
+
+        window.fetchPendingUsers = async () => {
+            const list = document.getElementById('pending-users-list');
+            if(!list) return;
+            list.innerHTML = '<div style="text-align:center;">جاري التحميل...</div>';
+            try {
+                const q = query(collection(db, "users"), where("status", "==", "pending"));
+                const querySnapshot = await getDocs(q);
+                list.innerHTML = '';
+                if(querySnapshot.empty) {
+                    list.innerHTML = '<div style="text-align:center; color:#999; font-size:0.8rem;">لا توجد طلبات جديدة</div>';
+                    return;
+                }
+                querySnapshot.forEach((doc) => {
+                    const u = doc.data();
+                    list.innerHTML += `<div style="display:flex; justify-content:space-between; align-items:center; background:white; padding:8px; border-radius:8px; margin-bottom:5px; border:1px solid #eee;"><span style="font-size:0.85rem; font-weight:bold;">${u.email}</span><div style="display:flex; gap:5px;"><button onclick="window.approveUser('${doc.id}')" style="background:#e8f5e9; color:#2e7d32; border:none; padding:4px 8px; border-radius:6px; cursor:pointer;">✅</button><button onclick="window.rejectUser('${doc.id}')" style="background:#ffebee; color:#c62828; border:none; padding:4px 8px; border-radius:6px; cursor:pointer;">❌</button></div></div>`;
+                });
+            } catch(e) { list.innerHTML = 'خطأ في التحميل'; }
+        };
+
+        onAuthStateChanged(auth, async (user) => {
+            if(user) {
+                const uDoc = await getDoc(doc(db, 'users', user.uid));
+                if(uDoc.exists()) {
+                    const data = uDoc.data();
+                    if(data.status !== 'active') {
+                        if(data.status === 'pending' || data.status === 'rejected') {
+                            await signOut(auth);
+                            document.getElementById('auth-overlay').style.display = 'flex';
+                            return;
+                        }
+                    }
+                    window.appData.role = data.role;
+                    if(window.appData.role === 'admin') {
+                        document.getElementById('admin-section').style.display = 'block';
+                    }
+                }
+
+                if(user.emailVerified) {
+                    document.getElementById('auth-overlay').style.display = 'none'; document.getElementById('app-container').style.display = 'block';
+                    document.getElementById('u-name').textContent = user.email.split('@')[0];
+                    window.app.initTheme(); window.showLoader(true);
+                    
+                    onSnapshot(doc(db, "attendance", user.uid), (doc) => { if(doc.exists()) window.appData.events = doc.data().events || {}; window.app.renderCalendar(); window.app.checkAutoFill(); });
+                    onSnapshot(doc(db, "settings", user.uid), (doc) => { 
+                        if(doc.exists()) window.appData.personal = doc.data() || {};
+                        if(!window.appData.personal.nfc) window.appData.personal.nfc = {enabled: false, serial: ''};
+                        if(!window.appData.personal.dismissedMsgs) window.appData.personal.dismissedMsgs = [];
+                        if(!window.appData.personal.deletedMsgs) window.appData.personal.deletedMsgs = [];
+                        
+                        document.getElementById('u-name').textContent = window.appData.personal.fullName || user.email.split('@')[0];
+                        document.getElementById('btn-nfc-scan').style.display = window.appData.personal.nfc.enabled ? 'flex' : 'none';
+                        
+                        if(window.appData.personal.themeColor) {
+                            window.app.applyColor(window.appData.personal.themeColor);
+                        }
+
+                        window.app.calcStats(); window.app.checkMessages();
+                    });
+                    onSnapshot(doc(db, "config", "general"), (doc) => { if(doc.exists()) { window.appData.global = doc.data() || {}; if(window.appData.global.appName) { document.title = window.appData.global.appName; document.getElementById('header-title').textContent = window.appData.global.appName; } } });
+                    const q = query(collection(db, "notifications"), orderBy("createdAt", "desc"));
+                    onSnapshot(q, (snapshot) => { let msgs = []; snapshot.forEach((doc) => msgs.push({ id: doc.id, ...doc.data() })); window.appData.messages = msgs; window.app.checkMessages(); });
+                    window.showLoader(false);
+                } else { if(user) await signOut(auth); document.getElementById('auth-overlay').style.display = 'flex'; document.getElementById('app-container').style.display = 'none'; window.showLoader(false); }
+            } else {
+                document.getElementById('auth-overlay').style.display = 'flex'; document.getElementById('app-container').style.display = 'none'; window.showLoader(false);
+            }
+        });
     </script>
 </body>
 </html>
