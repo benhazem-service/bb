@@ -797,23 +797,20 @@
                 let yr = currentDate.getFullYear();
                 let mth = currentDate.getMonth();
                 
-                // تواريخ لحساب الأسبوع الحالي
                 const today = new Date();
                 const weekStart = new Date(today); weekStart.setDate(today.getDate() - today.getDay()); weekStart.setHours(0,0,0,0);
                 const weekEnd = new Date(weekStart); weekEnd.setDate(weekStart.getDate() + 6); weekEnd.setHours(23,59,59,999);
 
+                // 1. حساب الإحصائيات العامة من الأحداث المسجلة
                 Object.entries(window.appData.events).forEach(([k, evt]) => {
                      const d = new Date(k);
                      
-                     // 1. حسابات التعويض (Recuperation) - نحسب للكل
-                     // إذا عملت يوم أحد
-                     if(d.getDay() === 0 && evt.type === 'work') { recupEarned++; }
-                     // إذا عملت في عيد أو عطلة وطنية
-                     if(evt.type === 'eid' && evt.eidStatus === 'work') { recupEarned++; }
-                     // إذا أخذت يوم تعويض
+                     // حسابات التعويض المستهلك
                      if(evt.type === 'recup') { recupTaken++; }
+                     // حسابات أعياد دينية مشتغلة (عيد)
+                     if(evt.type === 'eid' && evt.eidStatus === 'work') { recupEarned++; }
 
-                     // 2. حسابات السنة الحالية فقط (للميزان والسبت)
+                     // حسابات السنة الحالية فقط (للميزان والساعات)
                      if(d.getFullYear() === yr) {
                          const isRam = window.app.isRamadan(k);
                          let effectiveHours = 0;
@@ -832,20 +829,50 @@
                          if(evt.type !== 'absent' && evt.type !== 'sick') tYearWorkHours += effectiveHours;
                          if(d.getMonth() === mth) tMonth += effectiveHours;
                          if(d >= weekStart && d <= weekEnd) tWeek += effectiveHours;
-
-                         // --- 3. منطق السبت الجديد ---
-                         if(d.getDay() === 6) {
-                             if(evt.type === 'work' || (evt.type === 'eid' && evt.eidStatus === 'work')) {
-                                 // عملت السبت: لك +4
-                                 satBalance += 4;
-                             } else if (evt.type === 'absent') {
-                                 // غبت السبت (بدون مبرر): عليك -4
-                                 satBalance -= 4;
-                             }
-                             // الحالات الأخرى (عطلة، مرض، يوم مدفوع) -> 0
-                         }
                      }
                 });
+
+                // 2. حلقة تكرارية خاصة لحساب السبت والأحد (تشمل الأيام غير المسجلة)
+                // من بداية السنة 2026 إلى غاية اليوم
+                let loopPtr = new Date(2026, 0, 1);
+                // نتوقف عند اليوم الحالي (لأن الغياب المستقبلي لا يحسب بعد)
+                const loopEnd = new Date(); 
+                
+                while(loopPtr <= loopEnd) {
+                    const k = `${loopPtr.getFullYear()}-${String(loopPtr.getMonth()+1).padStart(2,'0')}-${String(loopPtr.getDate()).padStart(2,'0')}`;
+                    const evt = window.appData.events[k];
+                    const day = loopPtr.getDay();
+                    const natName = nationalHolidays[`${loopPtr.getMonth()+1}-${loopPtr.getDate()}`];
+
+                    // منطق السبت: فحص كل سبت مر
+                    if(day === 6) {
+                        if(evt) {
+                            if(evt.type === 'work' || (evt.type==='eid' && evt.eidStatus==='work')) {
+                                satBalance += 4;
+                            } else if (evt.type === 'absent') {
+                                satBalance -= 4;
+                            }
+                            // holiday, sick, paid -> 0 (لا تغيير)
+                        } else {
+                            // سبت فارغ (لم يسجل) يعتبر غياباً
+                            satBalance -= 4;
+                        }
+                    }
+
+                    // منطق الأحد: فحص كل أحد مر
+                    if(day === 0) {
+                        // إذا كان عيد وطني صادف الأحد -> +1 تعويض
+                        if(natName) {
+                            recupEarned++;
+                        } 
+                        // أو إذا كان يوم عمل
+                        else if (evt && evt.type === 'work') {
+                            recupEarned++;
+                        }
+                    }
+
+                    loopPtr.setDate(loopPtr.getDate() + 1);
+                }
                 
                 // النتيجة النهائية لرصيد الأحد والعيد
                 const pendingRecup = recupEarned - recupTaken;
@@ -885,27 +912,51 @@
                     document.getElementById('searchModal').style.display = 'flex'; return;
                 }
 
-                // تفاصيل الأحد والعيد (معدلة)
+                // تفاصيل الأحد والعيد (معدلة لتشمل الحلقة التكرارية)
                 else if (cat === 'sunday') {
                     document.getElementById('search-title').textContent = 'رصيد التعويض (الأحد/الأعياد)';
                     
-                    // 1. الأيام التي تستوجب التعويض
-                    list.innerHTML += `<div class="details-header">أيام عملتها (تستحق التعويض):</div>`;
-                    let earnedCount = 0;
-                    for(const [k, evt] of Object.entries(window.appData.events)) {
-                        const d = new Date(k);
-                        // يوم أحد عمل أو عيد عمل
-                        if( (d.getDay() === 0 && evt.type === 'work') || (evt.type === 'eid' && evt.eidStatus === 'work') ) {
-                            earnedCount++;
-                            let label = d.getDay() === 0 ? "عمل يوم أحد" : "عمل يوم عيد";
-                            tempList.push({date:k, note:label, val:'+1', type:'pos'});
-                        }
-                    }
-                    if(tempList.length === 0) list.innerHTML += '<div style="text-align:center;color:#999;font-size:0.8rem;">لا يوجد</div>';
-                    tempList.sort((a,b) => new Date(b.date) - new Date(a.date));
-                    tempList.forEach(item => list.innerHTML += `<div class="detail-item ${item.type}" onclick="window.app.openDay('${item.date}')"><span>${item.date} <small>(${item.note})</small></span><span class="d-val ${item.type}">${item.val}</span></div>`);
+                    list.innerHTML += `<div class="details-header">أيام تستحق التعويض (المكتسبة):</div>`;
+                    
+                    let loopPtr = new Date(2026, 0, 1);
+                    const loopEnd = new Date();
+                    let hasEarned = false;
 
-                    // 2. أيام التعويض المستهلكة
+                    // الحلقة التكرارية للبحث عن الأيام المستحقة
+                    while(loopPtr <= loopEnd) {
+                        const k = `${loopPtr.getFullYear()}-${String(loopPtr.getMonth()+1).padStart(2,'0')}-${String(loopPtr.getDate()).padStart(2,'0')}`;
+                        const evt = window.appData.events[k];
+                        const day = loopPtr.getDay();
+                        const natName = nationalHolidays[`${loopPtr.getMonth()+1}-${loopPtr.getDate()}`];
+                        
+                        let earned = false;
+                        let reason = "";
+
+                        // 1. عيد وطني يوم الأحد
+                        if (day === 0 && natName) {
+                            earned = true; reason = `عيد وطني يوم أحد (${natName})`;
+                        }
+                        // 2. عمل يوم الأحد
+                        else if (day === 0 && evt && evt.type === 'work') {
+                            earned = true; reason = "عمل يوم أحد";
+                        }
+                        // 3. عمل يوم عيد ديني
+                        else if (evt && evt.type === 'eid' && evt.eidStatus === 'work') {
+                            earned = true; reason = `عمل يوم عيد (${evt.eidName || 'ديني'})`;
+                        }
+
+                        if(earned) {
+                            hasEarned = true;
+                            // إضافة للقائمة مباشرة (أو لمصفوفة مؤقتة للفرز)
+                            // هنا سنضيف مباشرة لأن الحلقة مرتبة زمنياً
+                            list.innerHTML += `<div class="detail-item pos" onclick="window.app.openDay('${k}')"><span>${k} <small>(${reason})</small></span><span class="d-val pos">+1</span></div>`;
+                        }
+                        loopPtr.setDate(loopPtr.getDate() + 1);
+                    }
+                    if(!hasEarned) list.innerHTML += '<div style="text-align:center;color:#999;font-size:0.8rem;">لا يوجد</div>';
+
+
+                    // عرض المستهلك (Taken)
                     list.innerHTML += `<div class="details-header">أيام استرجعتها (Recuperation):</div>`;
                     let takenList = [];
                     for(const [k, evt] of Object.entries(window.appData.events)) {
@@ -920,29 +971,41 @@
                     document.getElementById('searchModal').style.display = 'flex'; return;
                 }
 
-                // تفاصيل السبت (معدلة)
+                // تفاصيل السبت (معدلة لتشمل الأيام الفارغة)
                 else if (cat === 'sat') {
                     document.getElementById('search-title').textContent = 'تفاصيل رصيد السبت';
-                    for(const [k, evt] of Object.entries(window.appData.events)) {
-                        const d = new Date(k);
-                        if(d.getFullYear() === yr && d.getDay() === 6) {
+                    
+                    let loopPtr = new Date(2026, 0, 1);
+                    const loopEnd = new Date();
+                    
+                    while(loopPtr <= loopEnd) {
+                        if(loopPtr.getDay() === 6) { // It's Saturday
+                            const k = `${loopPtr.getFullYear()}-${String(loopPtr.getMonth()+1).padStart(2,'0')}-${String(loopPtr.getDate()).padStart(2,'0')}`;
+                            const evt = window.appData.events[k];
+                            
                             let note = '', val = 0, type = 'neutral';
-                            
-                            if(evt.type === 'work' || (evt.type === 'eid' && evt.eidStatus === 'work')) {
-                                note = 'عمل'; val = 4; type = 'pos';
-                            } else if (evt.type === 'absent') {
-                                note = 'غياب'; val = -4; type = 'neg';
+
+                            if(evt) {
+                                if(evt.type === 'work' || (evt.type==='eid' && evt.eidStatus==='work')) {
+                                    note = 'عمل'; val = 4; type = 'pos';
+                                } else if (evt.type === 'absent') {
+                                    note = 'غياب مسجل'; val = -4; type = 'neg';
+                                } else {
+                                    // عطلة، مرض..
+                                    // لا نعرضها إذا كانت 0 لتخفيف القائمة، أو نعرضها كـ 0
+                                }
                             } else {
-                                // الحالات الأخرى لا تؤثر
-                                note = {holiday:'عطلة', sick:'مرض', paid:'مدفوع'}[evt.type] || evt.type;
-                                val = 0; type = 'neutral';
+                                note = 'غياب (غير مسجل)'; val = -4; type = 'neg';
                             }
-                            
-                            if(val !== 0) { 
-                                tempList.push({date:k, note:note, val:(val>0?'+':'')+val, type});
+
+                            if(val !== 0) {
+                                tempList.push({date:k, note:note, val:(val>0?'+':'')+val, type:type});
                             }
                         }
+                        loopPtr.setDate(loopPtr.getDate() + 1);
                     }
+                    // ترتيب عكسي (الأحدث أولاً)
+                    tempList.sort((a,b) => new Date(b.date) - new Date(a.date));
                 } 
                 
                 else if (cat === 'year') {
@@ -1020,11 +1083,13 @@
                      }
                 }
 
-                tempList.sort((a,b) => new Date(b.date) - new Date(a.date));
-                if(tempList.length === 0 && !cat.startsWith('year_sub') && cat !== 'sunday') list.innerHTML += '<div style="text-align:center; padding:10px;">لا توجد بيانات</div>';
-                tempList.forEach(item => {
-                    list.innerHTML += `<div class="detail-item ${item.type}" onclick="window.app.openDay('${item.date}')"><span>${item.date} <small>(${item.note})</small></span><span class="d-val ${item.type}">${item.val}</span></div>`;
-                });
+                if (cat !== 'sunday') {
+                    tempList.sort((a,b) => new Date(b.date) - new Date(a.date));
+                    if(tempList.length === 0 && !cat.startsWith('year_sub')) list.innerHTML += '<div style="text-align:center; padding:10px;">لا توجد بيانات</div>';
+                    tempList.forEach(item => {
+                        list.innerHTML += `<div class="detail-item ${item.type}" onclick="window.app.openDay('${item.date}')"><span>${item.date} <small>(${item.note})</small></span><span class="d-val ${item.type}">${item.val}</span></div>`;
+                    });
+                }
                 document.getElementById('searchModal').style.display = 'flex';
             },
 
